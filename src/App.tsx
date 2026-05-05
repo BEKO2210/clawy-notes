@@ -52,6 +52,12 @@ function Sidebar() {
     ? [...getPinnedNotes(), ...notes.filter(n => !n.isPinned && !n.isArchived)]
     : notes.filter(n => !n.isArchived)
 
+  const closeOnMobile = () => {
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
+      setSidebarOpen(false)
+    }
+  }
+
   const handleNewFolder = (e: React.FormEvent) => {
     e.preventDefault()
     if (newFolderName.trim()) {
@@ -61,30 +67,67 @@ function Sidebar() {
     }
   }
 
-  if (!sidebarOpen) {
-    return (
-      <button
-        onClick={() => setSidebarOpen(true)}
-        className="fixed left-4 top-4 z-20 p-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--bg-tertiary)] hover-lift"
-      >
-        <Menu className="w-5 h-5 text-[var(--text-secondary)]" />
-      </button>
-    )
+  const handlePickNote = (id: string) => {
+    setActiveNote(id)
+    closeOnMobile()
+  }
+
+  const handleNewNote = () => {
+    addNote({ title: 'New Note', content: '# New Note\n\nStart writing...' })
+    closeOnMobile()
   }
 
   return (
-    <aside className="w-64 h-screen flex flex-col bg-[var(--bg-secondary)] border-r border-[var(--bg-tertiary)] animate-slide-in">
+    <>
+      {/* Floating menu button — visible whenever the drawer/sidebar is closed */}
+      {!sidebarOpen && (
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="fixed left-4 top-4 z-30 p-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--bg-tertiary)] hover-lift"
+          aria-label="Open menu"
+        >
+          <Menu className="w-5 h-5 text-[var(--text-secondary)]" />
+        </button>
+      )}
+
+      {/* Mobile-only backdrop */}
+      {sidebarOpen && (
+        <button
+          type="button"
+          onClick={() => setSidebarOpen(false)}
+          aria-label="Close menu"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+        />
+      )}
+
+      {/* Sidebar — mobile drawer, desktop static column */}
+      <aside
+        className={[
+          'flex flex-col h-screen w-72',
+          'bg-[var(--bg-secondary)] border-r border-[var(--bg-tertiary)]',
+          'fixed inset-y-0 left-0 z-50',
+          'transition-transform duration-300 ease-out',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+          'md:static md:translate-x-0 md:w-64 md:transition-none',
+          sidebarOpen ? 'md:flex' : 'md:hidden',
+        ].join(' ')}
+        aria-hidden={!sidebarOpen}
+      >
       {/* Header */}
       <div className="p-4 border-b border-[var(--bg-tertiary)]">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-lg font-bold font-display text-[var(--text-primary)]">Clawy Notes</h1>
-          <button onClick={() => setSidebarOpen(false)} className="p-1 rounded hover:bg-[var(--bg-tertiary)]">
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="p-2 rounded hover:bg-[var(--bg-tertiary)]"
+            aria-label="Close menu"
+          >
             <ChevronLeft className="w-5 h-5 text-[var(--text-secondary)]" />
           </button>
         </div>
         <button
-          onClick={() => addNote({ title: 'New Note', content: '# New Note\n\nStart writing...' })}
-          className="w-full flex items-center gap-2 px-3 py-2 bg-[var(--accent)] text-white rounded-lg hover:bg-[var(--accent-hover)] transition-colors active-press"
+          onClick={handleNewNote}
+          className="w-full flex items-center gap-2 px-3 py-2.5 bg-[var(--accent)] text-white rounded-lg hover:bg-[var(--accent-hover)] transition-colors active-press"
         >
           <Plus className="w-4 h-4" />
           <span className="text-sm font-medium">New Note</span>
@@ -180,7 +223,7 @@ function Sidebar() {
           {displayedNotes.map(note => (
             <button
               key={note.id}
-              onClick={() => setActiveNote(note.id)}
+              onClick={() => handlePickNote(note.id)}
               className={`w-full text-left p-2 rounded-lg transition-colors ${
                 activeNoteId === note.id
                   ? 'bg-[var(--accent)]/10 border border-[var(--accent)]/20'
@@ -205,13 +248,14 @@ function Sidebar() {
           )}
         </div>
       </div>
-    </aside>
+      </aside>
+    </>
   )
 }
 
 // Main Editor Component
 function Editor() {
-  const { getActiveNote, updateNote, viewMode, setViewMode, deleteNote, pinNote, archiveNote, darkMode } = useNoteStore()
+  const { getActiveNote, updateNote, viewMode, setViewMode, deleteNote, pinNote, archiveNote, darkMode, sidebarOpen } = useNoteStore()
   const note = getActiveNote()
   const editorRef = useRef<MarkdownEditorHandle>(null)
   const content = note?.content ?? ''
@@ -241,10 +285,10 @@ function Editor() {
   return (
     <div className="flex-1 flex flex-col bg-[var(--bg-primary)]">
       {/* Note Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--bg-tertiary)]">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold font-display text-[var(--text-primary)]">{note.title}</h2>
-          {note.isPinned && <Pin className="w-4 h-4 text-[var(--accent)]" />}
+      <div className={`flex items-center justify-between py-3 pr-4 border-b border-[var(--bg-tertiary)] ${sidebarOpen ? 'pl-4' : 'pl-16'}`}>
+        <div className="flex items-center gap-2 min-w-0">
+          <h2 className="text-lg font-semibold font-display text-[var(--text-primary)] truncate">{note.title}</h2>
+          {note.isPinned && <Pin className="w-4 h-4 text-[var(--accent)] flex-shrink-0" />}
         </div>
         <div className="flex items-center gap-1">
           <button onClick={() => pinNote(note.id)} className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors" title="Pin">
