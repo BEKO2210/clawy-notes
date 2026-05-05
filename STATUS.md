@@ -1,60 +1,58 @@
 # Clawy Notes - Status Report
 
-**Date:** 2026-05-05 18:00 UTC
+**Date:** 2026-05-05
 **Project:** Clawy Notes (Markdown Editor)
 **Repo:** https://github.com/BEKO2210/clawy-notes
+**Live:** https://beko2210.github.io/clawy-notes/
 
 ---
 
-## Completed: Stage 1 - Foundation ✅
+## Completed: Stage 1 - Foundation
 
-### Delivered:
-- **TEAM.md** — 50 team members across 7 squads
-- **ARCHITECTURE.md** — Full tech spec, data models, stage plan
-- **Project Setup** — Vite + React + TypeScript + Tailwind v3
-- **Design System** — Editorial/Magazine tone, CSS variables, dark mode ready
-- **Fonts** — Plus Jakarta Sans, Space Grotesk, JetBrains Mono
-- **GitHub Repo** — Created and pushed
+- `TEAM.md` - 50 team members across 7 squads
+- `ARCHITECTURE.md` - tech spec, data models, stage plan
+- Project setup - Vite + React 19 + TypeScript + Tailwind v3
+- Design system - editorial tone, CSS variables, dark mode tokens
+- Fonts - Plus Jakarta Sans, Space Grotesk, JetBrains Mono
+- GitHub repo created and pushed
 
----
+## Completed: Stage 2 - Core Editor
 
-## In Progress: Stage 2 - Core Editor ⏳
-
-### What was started:
-- Zustand store structure
-- TypeScript types (Note, Folder, Tag)
-- Base UI components
-
-### What needs completion:
-- [ ] CodeMirror 6 integration (npm install needed)
-- [ ] Markdown preview (Marked + DOMPurify)
-- [ ] CRUD operations (create, read, update, delete notes)
-- [ ] Auto-save functionality
-- [ ] Editor toolbar (bold, italic, headings, lists)
-
----
-
-## Pending: Stages 3-5 📋
-
-### Stage 3: Organization
-- Folders (hierarchical)
-- Tags
-- Search (full-text)
-- Filters
-
-### Stage 4: Polish
+- Zustand store with `persist` (notes, folders, tags, UI state)
+- TypeScript types (`Note`, `Folder`, `Tag`)
+- Sidebar - folders, tags, search, note list
+- Editor - textarea with toolbar (bold, italic, heading, list, checkbox)
+- Live markdown preview (Marked + DOMPurify)
+- View modes - editor / split / preview
+- CRUD - create, update, pin, archive, delete
+- Auto-title from first heading, auto-save on change
 - Dark mode toggle
-- Animations
-- Mobile optimization
-- PWA setup
-- Export (PDF, HTML, MD)
+- GitHub Actions deploy workflow to GitHub Pages
 
-### Stage 5: Launch
-- Testing
-- Documentation
-- GitHub Pages deploy
-- README
-- Open source release
+---
+
+## Pending: Stage 3 - Organization
+
+- [ ] Hierarchical folders (parent / child)
+- [ ] Tag CRUD UI (currently read-only)
+- [ ] Advanced search (full-text, by tag, by folder)
+- [ ] Filters (pinned, archived, untagged)
+
+## Pending: Stage 4 - Polish
+
+- [ ] CodeMirror 6 swap-in for the textarea (deps already installed)
+- [ ] Animations and micro-interactions
+- [ ] Mobile optimization (touch targets, drawer sidebar)
+- [ ] PWA setup (service worker, manifest, offline shell)
+- [ ] Export (PDF, HTML, Markdown)
+- [ ] IndexedDB (Dexie) migration from `localStorage`
+
+## Pending: Stage 5 - Launch
+
+- [ ] Unit + E2E tests
+- [ ] Lighthouse pass against the performance budget
+- [ ] User-facing docs / keyboard shortcut reference
+- [ ] Public release
 
 ---
 
@@ -62,11 +60,11 @@
 
 | Squad | Lead | Status |
 |-------|------|--------|
-| Core | Alex Chen | Store setup, waiting for editor integration |
-| Design | Maya Patel | Design tokens complete, needs component polish |
-| Editor | Jordan Smith | CodeMirror integration pending |
-| Features | Olivia Green | Waiting for core completion |
-| DevOps | Riley Kim | CI/CD ready, waiting for build |
+| Core | Alex Chen | Store + persistence shipped |
+| Design | Maya Patel | Tokens + components shipped, polish pending |
+| Editor | Jordan Smith | Textarea + toolbar shipped, CodeMirror swap pending |
+| Features | Olivia Green | Folders / tags / search shipped (basic) |
+| DevOps | Riley Kim | Pages deploy workflow live |
 | Mobile | Aiden Murphy | Responsive base started |
 | QA | Zoe Baker | Test setup pending |
 
@@ -74,24 +72,8 @@
 
 ## Next Session Priority
 
-1. Complete Stage 2 (Core Editor)
-2. Install CodeMirror 6
-3. Wire up CRUD operations
-4. Build and verify
-5. Deploy to GitHub Pages
-
----
-
-## Notes
-
-- Time limit reached (2 hours)
-- Project foundation is solid
-- Team structure documented
-- Architecture clear
-- Needs focused completion session
-
-**Estimated remaining time:** 4-6 hours for full completion
-
----
-
-*"The beginning is the most important part of the work." — Plato*
+1. Swap textarea for CodeMirror 6 (deps already in `package.json`)
+2. Hierarchical folders + tag management UI
+3. Mobile drawer + touch targets
+4. PWA shell and offline cache
+5. First test pass and Lighthouse audit
