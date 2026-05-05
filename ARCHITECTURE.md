@@ -7,15 +7,15 @@ A markdown note editor built for speed, beauty, and offline-first reliability.
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| **Framework** | React 18 + TypeScript | UI layer |
-| **Build Tool** | Vite 5 | Fast builds, HMR |
+| **Framework** | React 19 + TypeScript | UI layer |
+| **Build Tool** | Vite | Fast builds, HMR |
 | **Styling** | Tailwind CSS v3 | Utility-first CSS |
-| **State** | Zustand + persist | Global state, localStorage |
-| **Storage** | IndexedDB (Dexie) | Notes, folders, tags |
-| **Editor** | CodeMirror 6 | Markdown editing |
+| **State** | Zustand + persist | Global state, persisted to `localStorage` |
+| **Storage** | `localStorage` today, IndexedDB (Dexie) planned | Notes, folders, tags |
+| **Editor** | `<textarea>` today, CodeMirror 6 swap planned | Markdown editing |
 | **Preview** | Marked + DOMPurify | Safe HTML rendering |
 | **Icons** | Lucide React | Consistent iconography |
-| **Deploy** | GitHub Pages | Static hosting |
+| **Deploy** | GitHub Pages (Actions) | Static hosting |
 
 ## Design System
 
@@ -59,22 +59,25 @@ A markdown note editor built for speed, beauty, and offline-first reliability.
 
 ## State Architecture (Zustand)
 
+A single `useNoteStore` holds data and UI state side by side. Editor content
+lives on the active `Note` itself — there is no separate editor slice.
+
 ```
-Store
+useNoteStore
 ├── notes: Note[]
 ├── folders: Folder[]
 ├── tags: Tag[]
-├── ui
-│   ├── sidebarOpen: boolean
-│   ├── darkMode: boolean
-│   ├── activeNoteId: string | null
-│   ├── searchQuery: string
-│   └── viewMode: 'editor' | 'preview' | 'split'
-└── editor
-    ├── content: string
-    ├── cursorPosition: number
-    └── isDirty: boolean
+├── activeNoteId: string | null
+├── sidebarOpen: boolean
+├── darkMode: boolean
+├── viewMode: 'editor' | 'preview' | 'split'
+└── searchQuery: string
 ```
+
+The `persist` middleware writes `notes`, `folders`, `tags`, `darkMode`,
+`sidebarOpen`, and `viewMode` to `localStorage` under the key
+`clawy-notes-storage`. `activeNoteId` and `searchQuery` are intentionally
+session-only.
 
 ## Data Models
 
@@ -100,7 +103,6 @@ interface Folder {
   name: string;
   parentId: string | null;
   color: string;
-  icon: string;
 }
 ```
 
@@ -115,7 +117,12 @@ interface Tag {
 
 ## Storage Strategy
 
-### IndexedDB (Dexie)
+### Today: `localStorage` via Zustand `persist`
+- Key: `clawy-notes-storage`
+- Persisted: `notes`, `folders`, `tags`, `darkMode`, `sidebarOpen`, `viewMode`
+- Session-only: `activeNoteId`, `searchQuery`
+
+### Planned: IndexedDB (Dexie)
 - **Database:** `clawy-notes`
 - **Tables:**
   - `notes` - All note content
@@ -124,11 +131,11 @@ interface Tag {
   - `settings` - User preferences
   - `sync` - Sync metadata
 
-### localStorage (Zustand persist)
-- UI state (sidebar, dark mode, view mode)
-- Session data (active note, search query)
-
 ## Component Architecture
+
+Today, `App.tsx` houses the full tree as three components: `Sidebar`,
+`Editor`, and the `Toolbar` that the `Editor` renders. Modals are not yet
+implemented. The target decomposition once the codebase is split is:
 
 ```
 App
@@ -151,6 +158,23 @@ App
 ```
 
 ## File Structure
+
+The Stage 2 build is intentionally flat. We will split into folders
+(`components/`, `lib/`, `hooks/`) once the surface grows in Stage 3+.
+
+```
+src/
+├── App.tsx       # Sidebar, editor, preview, top-level layout
+├── App.css       # App-specific styling
+├── store.ts      # Zustand store: notes, folders, tags, UI state
+├── lib.ts        # Markdown rendering, title extraction, date formatting
+├── types.ts      # Note, Folder, Tag, ViewMode types
+├── index.css     # Tailwind layers + design tokens
+├── main.tsx      # React entry point
+└── assets/       # Static assets
+```
+
+### Target Structure (Stage 3+)
 
 ```
 src/
@@ -220,27 +244,27 @@ src/
 ## Stage Plan
 
 ### Stage 1: Foundation (Week 1)
-- [ ] Project setup (Vite, React, TypeScript, Tailwind)
-- [ ] Design system (tokens, colors, typography)
-- [ ] Component library (Button, Input, Card, Modal)
-- [ ] State management (Zustand stores)
-- [ ] Storage layer (IndexedDB setup)
+- [x] Project setup (Vite, React, TypeScript, Tailwind)
+- [x] Design system (tokens, colors, typography)
+- [x] Component library (Button, Input, Card, Modal)
+- [x] State management (Zustand stores)
+- [ ] Storage layer (IndexedDB setup) - currently `localStorage` via Zustand `persist`
 
 ### Stage 2: Core Editor (Week 1-2)
-- [ ] CodeMirror integration
-- [ ] Markdown preview
-- [ ] Basic CRUD (create, read, update, delete notes)
-- [ ] Auto-save
+- [ ] CodeMirror integration - deps installed, textarea still in use
+- [x] Markdown preview (Marked + DOMPurify)
+- [x] Basic CRUD (create, read, update, delete notes)
+- [x] Auto-save (on every change)
 - [ ] Drafts
 
 ### Stage 3: Organization (Week 2)
-- [ ] Folders (hierarchical)
-- [ ] Tags
-- [ ] Search (full-text)
-- [ ] Filters
+- [ ] Folders (hierarchical) - flat folders shipped
+- [x] Tags (read-only, seeded)
+- [x] Search (substring across title + content)
+- [ ] Filters (pinned, archived, untagged)
 
 ### Stage 4: Polish (Week 2-3)
-- [ ] Dark mode
+- [x] Dark mode
 - [ ] Animations
 - [ ] Mobile optimization
 - [ ] PWA setup
@@ -249,8 +273,8 @@ src/
 ### Stage 5: Launch (Week 3)
 - [ ] Testing
 - [ ] Documentation
-- [ ] GitHub Pages deploy
-- [ ] README
+- [x] GitHub Pages deploy (Actions workflow)
+- [x] README
 - [ ] Open source release
 
 ---
