@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { useNoteStore } from './store'
 import { renderMarkdown, extractTitle, formatDate } from './lib'
+import { MarkdownEditor, type MarkdownEditorHandle } from './MarkdownEditor'
 import './App.css'
 
 // Simple toolbar component
@@ -210,36 +211,19 @@ function Sidebar() {
 
 // Main Editor Component
 function Editor() {
-  const { getActiveNote, updateNote, viewMode, setViewMode, deleteNote, pinNote, archiveNote } = useNoteStore()
+  const { getActiveNote, updateNote, viewMode, setViewMode, deleteNote, pinNote, archiveNote, darkMode } = useNoteStore()
   const note = getActiveNote()
-  const [content, setContent] = useState('')
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-
-  useEffect(() => {
-    if (note) {
-      setContent(note.content)
-    }
-  }, [note?.id])
+  const editorRef = useRef<MarkdownEditorHandle>(null)
+  const content = note?.content ?? ''
 
   const handleContentChange = useCallback((newContent: string) => {
-    setContent(newContent)
-    if (note) {
-      const title = extractTitle(newContent)
-      updateNote(note.id, { content: newContent, title })
-    }
+    if (!note) return
+    const title = extractTitle(newContent)
+    updateNote(note.id, { content: newContent, title })
   }, [note, updateNote])
 
   const handleInsert = (text: string) => {
-    const textarea = textareaRef.current
-    if (!textarea) return
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    const newContent = content.slice(0, start) + text + content.slice(end)
-    handleContentChange(newContent)
-    setTimeout(() => {
-      textarea.focus()
-      textarea.setSelectionRange(start + text.length, start + text.length)
-    }, 0)
+    editorRef.current?.insertAtCursor(text)
   }
 
   if (!note) {
@@ -304,13 +288,11 @@ function Editor() {
       <div className="flex-1 flex overflow-hidden">
         {(viewMode === 'editor' || viewMode === 'split') && (
           <div className={`${viewMode === 'split' ? 'w-1/2' : 'w-full'} h-full`}>
-            <textarea
-              ref={textareaRef}
+            <MarkdownEditor
+              ref={editorRef}
               value={content}
-              onChange={(e) => handleContentChange(e.target.value)}
-              className="w-full h-full p-4 resize-none bg-[var(--bg-primary)] text-[var(--text-primary)] font-mono text-sm leading-relaxed focus:outline-none"
-              placeholder="# Start writing..."
-              spellCheck={false}
+              onChange={handleContentChange}
+              darkMode={darkMode}
             />
           </div>
         )}
