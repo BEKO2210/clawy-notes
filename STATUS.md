@@ -21,7 +21,7 @@
 - Zustand store with `persist` (notes, folders, tags, UI state)
 - TypeScript types (`Note`, `Folder`, `Tag`)
 - Sidebar - folders, tags, search, note list
-- Editor - textarea with toolbar (bold, italic, heading, list, checkbox)
+- Editor - CodeMirror 6 (lang-markdown, line wrapping, dark-mode compartment) with toolbar (bold, italic, heading, list, checkbox)
 - Live markdown preview (Marked + DOMPurify)
 - View modes - editor / split / preview
 - CRUD - create, update, pin, archive, delete
@@ -40,12 +40,12 @@
 
 ## Pending: Stage 4 - Polish
 
-- [ ] CodeMirror 6 swap-in for the textarea (deps already installed)
 - [ ] Animations and micro-interactions
 - [ ] Mobile optimization (touch targets, drawer sidebar)
 - [ ] PWA setup (service worker, manifest, offline shell)
 - [ ] Export (PDF, HTML, Markdown)
 - [ ] IndexedDB (Dexie) migration from `localStorage`
+- [ ] Bundle slimming (CodeMirror lazy import, lucide-react tree-shake) — current bundle ~290 kB gzipped
 
 ## Pending: Stage 5 - Launch
 
@@ -62,7 +62,7 @@
 |-------|------|--------|
 | Core | Alex Chen | Store + persistence shipped |
 | Design | Maya Patel | Tokens + components shipped, polish pending |
-| Editor | Jordan Smith | Textarea + toolbar shipped, CodeMirror swap pending |
+| Editor | Jordan Smith | CodeMirror 6 + toolbar shipped |
 | Features | Olivia Green | Folders / tags / search shipped (basic) |
 | DevOps | Riley Kim | Pages deploy workflow live |
 | Mobile | Aiden Murphy | Responsive base started |
@@ -72,8 +72,8 @@
 
 ## Next Session Priority
 
-1. Swap textarea for CodeMirror 6 (deps already in `package.json`)
-2. Hierarchical folders + tag management UI
-3. Mobile drawer + touch targets
-4. PWA shell and offline cache
+1. Hierarchical folders + tag management UI
+2. Mobile drawer + touch targets
+3. PWA shell and offline cache
+4. Bundle slimming (CodeMirror lazy import, lucide-react tree-shake)
 5. First test pass and Lighthouse audit

@@ -12,7 +12,7 @@ A markdown note editor built for speed, beauty, and offline-first reliability.
 | **Styling** | Tailwind CSS v3 | Utility-first CSS |
 | **State** | Zustand + persist | Global state, persisted to `localStorage` |
 | **Storage** | `localStorage` today, IndexedDB (Dexie) planned | Notes, folders, tags |
-| **Editor** | `<textarea>` today, CodeMirror 6 swap planned | Markdown editing |
+| **Editor** | CodeMirror 6 (lang-markdown, minimalSetup) | Markdown editing |
 | **Preview** | Marked + DOMPurify | Safe HTML rendering |
 | **Icons** | Lucide React | Consistent iconography |
 | **Deploy** | GitHub Pages (Actions) | Static hosting |
@@ -251,7 +251,7 @@ src/
 - [ ] Storage layer (IndexedDB setup) - currently `localStorage` via Zustand `persist`
 
 ### Stage 2: Core Editor (Week 1-2)
-- [ ] CodeMirror integration - deps installed, textarea still in use
+- [x] CodeMirror 6 integration (lang-markdown, line wrapping, dark-mode compartment)
 - [x] Markdown preview (Marked + DOMPurify)
 - [x] Basic CRUD (create, read, update, delete notes)
 - [x] Auto-save (on every change)
