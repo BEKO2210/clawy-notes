@@ -33,6 +33,15 @@ interface FrontmatterToken extends Tokens.Generic {
   yaml: string
 }
 
+interface CalloutToken extends Tokens.Generic {
+  type: 'callout'
+  raw: string
+  variant: string
+  title: string
+  body: string
+  collapsed: boolean
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function escapeHtml(s: string): string {
@@ -142,6 +151,65 @@ const wikilink: MarkedExtension['extensions'] = [
 
 // ─── Block extensions ────────────────────────────────────────────────────────
 
+const CALLOUT_VARIANTS = new Set([
+  'info', 'tip', 'note', 'warning', 'danger', 'caution', 'success', 'quote', 'todo', 'example',
+])
+
+const callout: MarkedExtension['extensions'] = [
+  {
+    name: 'callout',
+    level: 'block',
+    start(src: string) {
+      return src.indexOf('> [!')
+    },
+    tokenizer(src: string): CalloutToken | undefined {
+      // First line: "> [!type] optional title" then any number of "> body" lines
+      const headRe = /^>\s*\[!(\w+)\](\+|-)?\s*([^\n]*)\n?/
+      const headMatch = headRe.exec(src)
+      if (!headMatch) return
+      const variantRaw = headMatch[1].toLowerCase()
+      if (!CALLOUT_VARIANTS.has(variantRaw)) return
+
+      let pos = headMatch[0].length
+      const bodyLines: string[] = []
+      // Consume subsequent "> body" lines (or "> " blank lines)
+      while (pos < src.length) {
+        const lineEnd = src.indexOf('\n', pos)
+        const end = lineEnd === -1 ? src.length : lineEnd
+        const line = src.slice(pos, end)
+        if (!/^>\s?/.test(line)) break
+        bodyLines.push(line.replace(/^>\s?/, ''))
+        if (lineEnd === -1) {
+          pos = src.length
+          break
+        }
+        pos = lineEnd + 1
+      }
+      return {
+        type: 'callout',
+        raw: src.slice(0, pos),
+        variant: variantRaw,
+        title: headMatch[3].trim(),
+        body: bodyLines.join('\n').trim(),
+        collapsed: headMatch[2] === '-',
+      }
+    },
+    renderer(token) {
+      const t = token as CalloutToken
+      const renderedBody = t.body ? marked.parse(t.body, { async: false }) as string : ''
+      const titleHtml = t.title || t.variant.charAt(0).toUpperCase() + t.variant.slice(1)
+      // <details> if collapsible (uses + or -), <div> otherwise. We default
+      // to <details open> for + and <details> closed for -, plain <div> when
+      // no marker is present so it always shows expanded.
+      if (token.raw.match(/^>\s*\[![^\]]+\][+-]/)) {
+        const open = t.collapsed ? '' : ' open'
+        return `<details class="plume-callout plume-callout-${t.variant}"${open}><summary class="plume-callout-title">${escapeHtml(titleHtml)}</summary><div class="plume-callout-body">${renderedBody}</div></details>`
+      }
+      return `<div class="plume-callout plume-callout-${t.variant}"><div class="plume-callout-title">${escapeHtml(titleHtml)}</div><div class="plume-callout-body">${renderedBody}</div></div>`
+    },
+  },
+]
+
 const frontmatter: MarkedExtension['extensions'] = [
   {
     name: 'frontmatter',
@@ -202,6 +270,7 @@ marked.use({
     ...(subscript ?? []),
     ...(wikilink ?? []),
     ...(frontmatter ?? []),
+    ...(callout ?? []),
   ],
   renderer,
 })

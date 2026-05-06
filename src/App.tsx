@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { SettingsModal } from './SettingsModal'
 import { AuditPage } from './AuditPage'
+import { CommandPalette } from './CommandPalette'
 
 const TAG_PALETTE = [
   '#0ea5e9', '#22c55e', '#f59e0b', '#ef4444',
@@ -159,8 +160,13 @@ function Sidebar() {
         searchRef.current?.select()
       })
     }
+    const openSettings = () => setSettingsOpen(true)
     window.addEventListener('clawy:focus-search', focus)
-    return () => window.removeEventListener('clawy:focus-search', focus)
+    window.addEventListener('clawy:open-settings', openSettings)
+    return () => {
+      window.removeEventListener('clawy:focus-search', focus)
+      window.removeEventListener('clawy:open-settings', openSettings)
+    }
   }, [])
 
   const archivedCount = notes.filter(n => n.isArchived).length
@@ -878,6 +884,7 @@ function App() {
     if (typeof window === 'undefined') return false
     return new URLSearchParams(window.location.search).get('audit') === '1'
   })
+  const [paletteOpen, setPaletteOpen] = useState(false)
 
   useEffect(() => {
     if (darkMode) {
@@ -902,6 +909,12 @@ function App() {
         e.preventDefault()
         setSidebarOpen(true)
         window.dispatchEvent(new Event('clawy:focus-search'))
+        return
+      }
+
+      if (meta && key === 'p') {
+        e.preventDefault()
+        setPaletteOpen(true)
         return
       }
 
@@ -934,6 +947,19 @@ function App() {
             const url = new URL(window.location.href)
             url.searchParams.delete('audit')
             window.history.replaceState({}, '', url.toString())
+          }}
+        />
+      )}
+      {paletteOpen && (
+        <CommandPalette
+          onClose={() => setPaletteOpen(false)}
+          onOpenSettings={() => {
+            setPaletteOpen(false)
+            window.dispatchEvent(new Event('clawy:open-settings'))
+          }}
+          onOpenAudit={() => {
+            setPaletteOpen(false)
+            setAuditOpen(true)
           }}
         />
       )}

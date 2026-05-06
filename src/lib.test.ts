@@ -141,6 +141,28 @@ describe('renderMarkdown', () => {
     expect(html).toMatch(/class="plume-copy"[^>]*>Copy<\/button>/)
   })
 
+  it('renders > [!info] callout', () => {
+    const html = renderMarkdown('> [!info]\n> Heads up!')
+    expect(html).toContain('plume-callout plume-callout-info')
+    expect(html).toContain('Heads up!')
+  })
+
+  it('renders collapsible callout with custom title', () => {
+    const html = renderMarkdown('> [!warning]- Be careful\n> Hidden by default')
+    expect(html).toContain('<details')
+    expect(html).toContain('plume-callout-warning')
+    expect(html).toContain('Be careful')
+    // No `open` attribute when marker is `-`
+    expect(html).not.toMatch(/<details[^>]+open/)
+  })
+
+  it('does not render unknown callout variants', () => {
+    const html = renderMarkdown('> [!unknownvariant]\n> body')
+    expect(html).not.toContain('plume-callout')
+    // Falls through to a regular blockquote
+    expect(html).toContain('<blockquote>')
+  })
+
   it('assigns sequential data-task-idx to task checkboxes', () => {
     const html = renderMarkdown('- [ ] one\n- [x] two\n- [ ] three')
     expect(html).toContain('data-task-idx="0"')
