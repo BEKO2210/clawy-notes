@@ -169,11 +169,14 @@ function Sidebar() {
       })
     }
     const openSettings = () => setSettingsOpen(true)
+    const closeSettings = () => setSettingsOpen(false)
     window.addEventListener('clawy:focus-search', focus)
     window.addEventListener('clawy:open-settings', openSettings)
+    window.addEventListener('clawy:close-settings', closeSettings)
     return () => {
       window.removeEventListener('clawy:focus-search', focus)
       window.removeEventListener('clawy:open-settings', openSettings)
+      window.removeEventListener('clawy:close-settings', closeSettings)
     }
   }, [])
 
@@ -1009,50 +1012,138 @@ function RightSidebarContainer() {
   return <RightSidebar note={note} onClose={() => setRightSidebarOpen(false)} />
 }
 
-function MobileFab({
-  onOpenSettings,
-  onOpenPalette,
-}: {
+interface MobileFabProps {
   onOpenSettings: () => void
   onOpenPalette: () => void
-}) {
-  const { addNote, sidebarOpen, setSidebarOpen, darkMode, toggleDarkMode } = useNoteStore()
+  /**
+   * Callback the FAB invokes when its X is tapped while any
+   * non-sheet overlay is up (sidebar, palette, audit, graph, etc.).
+   * The parent decides which overlays to dismiss — the FAB just
+   * signals "the user wants out".
+   */
+  hasOtherOverlays: () => boolean
+  onCloseAllOverlays: () => void
+}
+
+function MobileFab({ onOpenSettings, onOpenPalette, hasOtherOverlays, onCloseAllOverlays }: MobileFabProps) {
+  const { addNote, sidebarOpen, setSidebarOpen, darkMode, toggleDarkMode, fabPosition, setFabPosition } = useNoteStore()
   const [open, setOpen] = useState(false)
+  const [dragging, setDragging] = useState(false)
+  const [drag, setDrag] = useState<{ x: number; y: number } | null>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const dragStateRef = useRef<{
+    pointerId: number
+    startX: number
+    startY: number
+    initialX: number
+    initialY: number
+    moved: boolean
+  } | null>(null)
 
   const action = (run: () => void) => {
     setOpen(false)
     run()
   }
 
-  // The FAB doubles as a universal "close" while any overlay is up: if
-  // the sidebar drawer is open or another overlay is consuming the
-  // screen, tapping + first dismisses it instead of opening the sheet.
-  // This way the user always has a clear escape with one tap.
-  const anyOverlay = sidebarOpen || open
+  const overlaysOpen = sidebarOpen || hasOtherOverlays()
+  const anyOverlay = overlaysOpen || open
+
   const handleTap = () => {
+    // Sheet wins — its tap-to-close is unambiguous.
     if (open) {
       setOpen(false)
       return
     }
-    if (sidebarOpen) {
-      setSidebarOpen(false)
+    // Any other overlay (sidebar, palette, audit, graph, settings):
+    // dismiss EVERYTHING in one tap so the user has a guaranteed
+    // single-tap escape from any state.
+    if (overlaysOpen) {
+      if (sidebarOpen) setSidebarOpen(false)
+      onCloseAllOverlays()
       return
     }
     setOpen(true)
   }
 
+  // ─── Drag handling ───────────────────────────────────────────────────────
+  const onPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!buttonRef.current) return
+    const target = buttonRef.current
+    target.setPointerCapture(e.pointerId)
+    dragStateRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      initialX: fabPosition.x,
+      initialY: fabPosition.y,
+      moved: false,
+    }
+  }
+
+  const onPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const s = dragStateRef.current
+    if (!s || s.pointerId !== e.pointerId) return
+    const dx = e.clientX - s.startX
+    const dy = e.clientY - s.startY
+    if (!s.moved && Math.hypot(dx, dy) > 6) {
+      s.moved = true
+      setDragging(true)
+    }
+    if (!s.moved) return
+    const x = s.initialX - dx
+    const y = s.initialY - dy
+    // Constrain to viewport (24px margin around the 56px button).
+    const w = window.innerWidth
+    const h = window.innerHeight
+    const clampedX = Math.max(8, Math.min(w - 56 - 8, x))
+    const clampedY = Math.max(8, Math.min(h - 56 - 8, y))
+    setDrag({ x: clampedX, y: clampedY })
+  }
+
+  const onPointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const s = dragStateRef.current
+    if (!s || s.pointerId !== e.pointerId) return
+    dragStateRef.current = null
+    if (s.moved && drag) {
+      setFabPosition(drag)
+    }
+    setDrag(null)
+    if (s.moved) {
+      // Suppress the synthetic click that follows a pointerup if we dragged.
+      setTimeout(() => setDragging(false), 0)
+    } else {
+      setDragging(false)
+      handleTap()
+    }
+  }
+
+  const pos = drag ?? fabPosition
+
   return (
     <div className="sm:hidden">
       <button
-        onClick={handleTap}
-        aria-label={open ? 'Close quick actions' : sidebarOpen ? 'Close sidebar' : 'Open quick actions'}
+        ref={buttonRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={() => {
+          dragStateRef.current = null
+          setDrag(null)
+          setDragging(false)
+        }}
+        aria-label={open ? 'Close quick actions' : overlaysOpen ? 'Close overlays' : 'Open quick actions'}
         aria-expanded={open}
-        className={`fixed bottom-4 right-4 z-[55] w-14 h-14 rounded-full shadow-lg active:scale-95 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+        className={`fixed z-[55] w-14 h-14 rounded-full shadow-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] touch-none ${
+          dragging ? 'duration-0 cursor-grabbing' : 'duration-200 active:scale-95 cursor-grab'
+        } ${
           anyOverlay
             ? 'bg-[var(--bg-secondary)] border border-[var(--bg-tertiary)] text-[var(--text-primary)]'
             : 'bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)]'
         }`}
-        style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
+        style={{
+          right: `${pos.x}px`,
+          bottom: `calc(${pos.y}px + env(safe-area-inset-bottom))`,
+        }}
       >
         <Plus className={`w-6 h-6 mx-auto transition-transform duration-200 ${anyOverlay ? 'rotate-45' : ''}`} />
       </button>
@@ -1220,6 +1311,13 @@ function App() {
       <MobileFab
         onOpenSettings={() => window.dispatchEvent(new Event('clawy:open-settings'))}
         onOpenPalette={() => setPaletteOpen(true)}
+        hasOtherOverlays={() => paletteOpen || auditOpen || graphOpen}
+        onCloseAllOverlays={() => {
+          setPaletteOpen(false)
+          setAuditOpen(false)
+          setGraphOpen(false)
+          window.dispatchEvent(new Event('clawy:close-settings'))
+        }}
       />
       {auditOpen && (
         <AuditPage

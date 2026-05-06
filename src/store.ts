@@ -52,6 +52,13 @@ interface NoteStore {
   darkMode: boolean
   viewMode: ViewMode
   searchQuery: string
+  /**
+   * Floating-action-button position. Coordinates are anchored to the
+   * bottom-right of the viewport: x = px from right edge, y = px from
+   * bottom. Stored across sessions so the FAB stays where the user
+   * dropped it.
+   */
+  fabPosition: { x: number; y: number }
   
   // Actions
   addNote: (note: Partial<Note>) => string
@@ -70,6 +77,7 @@ interface NoteStore {
   setActiveFolder: (id: string | null) => void
   setSidebarOpen: (open: boolean) => void
   setRightSidebarOpen: (open: boolean) => void
+  setFabPosition: (pos: { x: number; y: number }) => void
   toggleDarkMode: () => void
   setViewMode: (mode: ViewMode) => void
   setSearchQuery: (query: string) => void
@@ -292,6 +300,7 @@ export const useNoteStore = create<NoteStore>()(
       darkMode: false,
       viewMode: 'split',
       searchQuery: '',
+      fabPosition: { x: 16, y: 16 },
       
       addNote: (note) => {
         const id = generateId()
@@ -386,6 +395,7 @@ export const useNoteStore = create<NoteStore>()(
       setActiveFolder: (id) => set({ activeFolderId: id }),
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
       setRightSidebarOpen: (open) => set({ rightSidebarOpen: open }),
+      setFabPosition: (pos) => set({ fabPosition: pos }),
       toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode })),
       setViewMode: (mode) => set({ viewMode: mode }),
       setSearchQuery: (query) => set({ searchQuery: query }),
@@ -460,6 +470,7 @@ export const useNoteStore = create<NoteStore>()(
         sidebarOpen: state.sidebarOpen,
         rightSidebarOpen: state.rightSidebarOpen,
         viewMode: state.viewMode,
+        fabPosition: state.fabPosition,
       }),
     }
   )
