@@ -45,7 +45,7 @@ export function HomeDashboard({
     () =>
       [...active]
         .filter((n) => !n.isPinned)
-        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+        .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '')),
     [active],
   )
 
@@ -174,7 +174,7 @@ function NoteGrid({
                   </span>
                 )}
                 <span>{formatDate(n.updatedAt)}</span>
-                {n.tags.slice(0, 3).map((tagId) => {
+                {(n.tags ?? []).slice(0, 3).map((tagId) => {
                   const tag = tagById.get(tagId)
                   if (!tag) return null
                   return (
@@ -187,8 +187,8 @@ function NoteGrid({
                     </span>
                   )
                 })}
-                {n.tags.length > 3 && (
-                  <span className="text-[10px]">+{n.tags.length - 3}</span>
+                {(n.tags ?? []).length > 3 && (
+                  <span className="text-[10px]">+{(n.tags ?? []).length - 3}</span>
                 )}
               </div>
             </button>

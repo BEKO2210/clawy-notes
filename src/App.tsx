@@ -647,9 +647,9 @@ function Sidebar() {
                   <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
                     {formatDate(note.updatedAt)}
                   </p>
-                  {note.tags.length > 0 && (
+                  {(note.tags ?? []).length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1.5">
-                      {note.tags.slice(0, 3).map(tagId => {
+                      {(note.tags ?? []).slice(0, 3).map(tagId => {
                         const tag = tags.find(t => t.id === tagId)
                         if (!tag) return null
                         return (
@@ -662,9 +662,9 @@ function Sidebar() {
                           </span>
                         )
                       })}
-                      {note.tags.length > 3 && (
+                      {(note.tags ?? []).length > 3 && (
                         <span className="text-[10px] leading-none text-[var(--text-tertiary)] self-center">
-                          +{note.tags.length - 3}
+                          +{(note.tags ?? []).length - 3}
                         </span>
                       )}
                     </div>
@@ -816,8 +816,9 @@ function PreviewPane({ note }: { note: Note }) {
       if (wiki) {
         e.preventDefault()
         const title = wiki.dataset.wikilink ?? ''
+        const lower = title.toLowerCase()
         const match = notes.find(
-          (n) => n.title.toLowerCase() === title.toLowerCase() && !n.isArchived,
+          (n) => !n.isArchived && (n.title ?? '').toLowerCase() === lower,
         )
         if (match) {
           setActiveNote(match.id)
@@ -929,8 +930,9 @@ function Editor() {
 
   const toggleNoteTag = (tagId: string) => {
     if (!note) return
-    const has = note.tags.includes(tagId)
-    const next = has ? note.tags.filter(id => id !== tagId) : [...note.tags, tagId]
+    const current = note.tags ?? []
+    const has = current.includes(tagId)
+    const next = has ? current.filter((id) => id !== tagId) : [...current, tagId]
     updateNote(note.id, { tags: next })
   }
 
@@ -1038,18 +1040,18 @@ function Editor() {
             <button
               onClick={() => setShowTagPicker(v => !v)}
               className={`relative p-2 rounded-lg transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
-                note.tags.length > 0
+                (note.tags ?? []).length > 0
                   ? 'bg-[var(--accent)]/15 text-[var(--accent)] ring-1 ring-inset ring-[var(--accent)]/20'
                   : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
               }`}
               title="Tags"
               aria-expanded={showTagPicker}
-              aria-pressed={note.tags.length > 0}
+              aria-pressed={(note.tags ?? []).length > 0}
             >
               <Tag className="w-4 h-4" />
-              {note.tags.length > 0 && (
+              {(note.tags ?? []).length > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-[14px] h-[14px] px-1 rounded-full bg-[var(--accent)] text-white text-[9px] font-semibold leading-none shadow-sm">
-                  {note.tags.length}
+                  {(note.tags ?? []).length}
                 </span>
               )}
             </button>
@@ -1064,7 +1066,7 @@ function Editor() {
                 </p>
               ) : (
                 tags.map(t => {
-                  const has = note.tags.includes(t.id)
+                  const has = (note.tags ?? []).includes(t.id)
                   return (
                     <button
                       key={t.id}
