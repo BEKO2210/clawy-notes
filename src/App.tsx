@@ -1,11 +1,16 @@
-import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import {
   Plus, Search, Menu, Moon, Sun, Eye, Edit3, Columns2,
   Folder, Tag, Pin, Archive, Trash2, ChevronLeft, FileText,
   Bold, Italic, Heading, List, CheckSquare,
   Strikethrough, Code, Link as LinkIcon, Quote, ListOrdered,
-  Table as TableIcon, Image as ImageIcon, Minus, Code2
+  Table as TableIcon, Image as ImageIcon, Minus, Code2, X, Check
 } from 'lucide-react'
+
+const TAG_PALETTE = [
+  '#0ea5e9', '#22c55e', '#f59e0b', '#ef4444',
+  '#8b5cf6', '#ec4899', '#14b8a6', '#a3a3a3',
+] as const
 import { useNoteStore } from './store'
 import { renderMarkdown, extractTitle, formatDate } from './lib'
 import type { MarkdownEditorHandle } from './MarkdownEditor'
@@ -121,11 +126,15 @@ function Sidebar() {
   const {
     notes, folders, tags, activeNoteId, sidebarOpen, searchQuery,
     setActiveNote, setSidebarOpen, setSearchQuery, addNote, addFolder,
+    addTag, deleteTag,
     getNotesByFolder, getPinnedNotes, searchNotes
   } = useNoteStore()
 
   const [showNewFolder, setShowNewFolder] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
+  const [showNewTag, setShowNewTag] = useState(false)
+  const [newTagName, setNewTagName] = useState('')
+  const [newTagColor, setNewTagColor] = useState<string>(TAG_PALETTE[0])
   const [activeFolder, setActiveFolder] = useState<string | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
 
@@ -164,6 +173,15 @@ function Sidebar() {
       addFolder(newFolderName)
       setNewFolderName('')
       setShowNewFolder(false)
+    }
+  }
+
+  const handleNewTag = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (newTagName.trim()) {
+      addTag(newTagName.trim(), newTagColor)
+      setNewTagName('')
+      setShowNewTag(false)
     }
   }
 
@@ -323,19 +341,63 @@ function Sidebar() {
 
       {/* Tags */}
       <div className="px-3 py-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)] mb-2">Tags</h3>
-        <div className="flex flex-wrap gap-1">
-          {tags.map(tag => (
-            <span
-              key={tag.id}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium"
-              style={{ backgroundColor: tag.color + '20', color: tag.color }}
-            >
-              <Tag className="w-3 h-3" />
-              {tag.name}
-            </span>
-          ))}
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Tags</h3>
+          <button
+            onClick={() => setShowNewTag(v => !v)}
+            className="p-1 rounded hover:bg-[var(--bg-tertiary)] transition-colors"
+            aria-label="Add tag"
+          >
+            <Plus className="w-3 h-3 text-[var(--text-tertiary)]" />
+          </button>
         </div>
+        {showNewTag && (
+          <form onSubmit={handleNewTag} className="mb-2 space-y-1.5">
+            <input
+              type="text"
+              value={newTagName}
+              onChange={(e) => setNewTagName(e.target.value)}
+              placeholder="Tag name"
+              className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] text-sm focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+              autoFocus
+            />
+            <div className="flex flex-wrap gap-1">
+              {TAG_PALETTE.map(c => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setNewTagColor(c)}
+                  aria-label={`Pick color ${c}`}
+                  className={`w-5 h-5 rounded-full transition-transform ${newTagColor === c ? 'scale-110 ring-2 ring-offset-1 ring-offset-[var(--bg-secondary)]' : ''}`}
+                  style={{ backgroundColor: c, ...(newTagColor === c ? { boxShadow: `0 0 0 2px ${c}` } : {}) }}
+                />
+              ))}
+            </div>
+          </form>
+        )}
+        {tags.length === 0 ? (
+          <p className="text-xs text-[var(--text-tertiary)]">No tags yet.</p>
+        ) : (
+          <div className="flex flex-wrap gap-1">
+            {tags.map(tag => (
+              <span
+                key={tag.id}
+                className="group inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium"
+                style={{ backgroundColor: tag.color + '22', color: tag.color }}
+              >
+                <Tag className="w-3 h-3" />
+                {tag.name}
+                <button
+                  onClick={() => deleteTag(tag.id)}
+                  aria-label={`Delete tag ${tag.name}`}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-black/10 p-0.5 leading-none"
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Note List */}
@@ -407,13 +469,15 @@ function Sidebar() {
 
 // Main Editor Component
 function Editor() {
-  const { getActiveNote, updateNote, viewMode, setViewMode, deleteNote, pinNote, archiveNote, darkMode, sidebarOpen } = useNoteStore()
+  const { getActiveNote, updateNote, viewMode, setViewMode, deleteNote, pinNote, archiveNote, darkMode, sidebarOpen, tags } = useNoteStore()
   const note = getActiveNote()
   const editorRef = useRef<MarkdownEditorHandle>(null)
   const content = note?.content ?? ''
 
   const [confirmDeleteFor, setConfirmDeleteFor] = useState<string | null>(null)
   const confirmingDelete = note != null && confirmDeleteFor === note.id
+  const [showTagPicker, setShowTagPicker] = useState(false)
+  const tagPickerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!confirmingDelete) return
@@ -421,11 +485,36 @@ function Editor() {
     return () => window.clearTimeout(timer)
   }, [confirmingDelete])
 
-  const handleContentChange = useCallback((newContent: string) => {
+  useEffect(() => {
+    if (!showTagPicker) return
+    const onClick = (e: MouseEvent) => {
+      if (!tagPickerRef.current?.contains(e.target as Node)) {
+        setShowTagPicker(false)
+      }
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowTagPicker(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [showTagPicker])
+
+  const toggleNoteTag = (tagId: string) => {
+    if (!note) return
+    const has = note.tags.includes(tagId)
+    const next = has ? note.tags.filter(id => id !== tagId) : [...note.tags, tagId]
+    updateNote(note.id, { tags: next })
+  }
+
+  const handleContentChange = (newContent: string) => {
     if (!note) return
     const title = extractTitle(newContent)
     updateNote(note.id, { content: newContent, title })
-  }, [note, updateNote])
+  }
 
   const handleWrap = (prefix: string, suffix?: string, placeholder?: string) => {
     editorRef.current?.wrapSelection(prefix, suffix, placeholder)
@@ -488,15 +577,73 @@ function Editor() {
           {note.isPinned && <Pin className="w-4 h-4 text-[var(--accent)] flex-shrink-0" />}
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={() => pinNote(note.id)} className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors" title="Pin">
-            <Pin className={`w-4 h-4 ${note.isPinned ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)]'}`} />
+          <div className="relative" ref={tagPickerRef}>
+            <button
+              onClick={() => setShowTagPicker(v => !v)}
+              className={`relative p-2 rounded-lg transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+                note.tags.length > 0
+                  ? 'bg-[var(--accent)]/15 text-[var(--accent)] ring-1 ring-inset ring-[var(--accent)]/20'
+                  : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+              }`}
+              title="Tags"
+              aria-expanded={showTagPicker}
+              aria-pressed={note.tags.length > 0}
+            >
+              <Tag className="w-4 h-4" />
+              {note.tags.length > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-[14px] h-[14px] px-1 rounded-full bg-[var(--accent)] text-white text-[9px] font-semibold leading-none shadow-sm">
+                  {note.tags.length}
+                </span>
+              )}
+            </button>
+            {showTagPicker && (
+              <div className="absolute right-0 top-full mt-1 z-30 w-56 max-h-64 overflow-y-auto rounded-lg border border-[var(--bg-tertiary)] bg-[var(--bg-secondary)] shadow-xl p-1.5 animate-scale-in">
+                {tags.length === 0 ? (
+                  <p className="px-2 py-2 text-xs text-[var(--text-tertiary)]">
+                    No tags yet. Create one in the sidebar.
+                  </p>
+                ) : (
+                  tags.map(t => {
+                    const has = note.tags.includes(t.id)
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => toggleNoteTag(t.id)}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[var(--bg-tertiary)] transition-colors text-left"
+                      >
+                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
+                        <span className="text-sm text-[var(--text-primary)] truncate flex-1">{t.name}</span>
+                        {has && <Check className="w-3.5 h-3.5 text-[var(--accent)] flex-shrink-0" />}
+                      </button>
+                    )
+                  })
+                )}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => pinNote(note.id)}
+            className={`p-2 rounded-lg transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+              note.isPinned
+                ? 'bg-[var(--accent)]/15 text-[var(--accent)] ring-1 ring-inset ring-[var(--accent)]/20'
+                : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+            }`}
+            title={note.isPinned ? 'Unpin' : 'Pin'}
+            aria-pressed={note.isPinned}
+          >
+            <Pin className={`w-4 h-4 ${note.isPinned ? 'fill-current' : ''}`} />
           </button>
           <button
             onClick={() => archiveNote(note.id)}
-            className={`p-2 rounded-lg transition-colors ${note.isArchived ? 'bg-[var(--accent)]/10' : 'hover:bg-[var(--bg-tertiary)]'}`}
+            className={`p-2 rounded-lg transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+              note.isArchived
+                ? 'bg-[var(--accent)]/15 text-[var(--accent)] ring-1 ring-inset ring-[var(--accent)]/20'
+                : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+            }`}
             title={note.isArchived ? 'Unarchive' : 'Archive'}
+            aria-pressed={note.isArchived}
           >
-            <Archive className={`w-4 h-4 ${note.isArchived ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)]'}`} />
+            <Archive className="w-4 h-4" />
           </button>
           {confirmingDelete ? (
             <button
@@ -518,28 +665,44 @@ function Editor() {
               <Trash2 className="w-4 h-4 text-[var(--text-tertiary)] group-hover:text-red-500 transition-colors" />
             </button>
           )}
-          <div className="w-px h-6 bg-[var(--bg-tertiary)] mx-1" />
-          <button
-            onClick={() => setViewMode('editor')}
-            className={`p-2 rounded-lg transition-colors ${viewMode === 'editor' ? 'bg-[var(--accent)]/10 text-[var(--accent)]' : 'hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]'}`}
-            title="Editor Only"
-          >
-            <Edit3 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setViewMode('split')}
-            className={`p-2 rounded-lg transition-colors ${viewMode === 'split' ? 'bg-[var(--accent)]/10 text-[var(--accent)]' : 'hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]'}`}
-            title="Split View"
-          >
-            <Columns2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setViewMode('preview')}
-            className={`p-2 rounded-lg transition-colors ${viewMode === 'preview' ? 'bg-[var(--accent)]/10 text-[var(--accent)]' : 'hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]'}`}
-            title="Preview Only"
-          >
-            <Eye className="w-4 h-4" />
-          </button>
+          <div className="ml-1 inline-flex items-center rounded-lg bg-[var(--bg-tertiary)]/60 p-0.5" role="group" aria-label="View mode">
+            <button
+              onClick={() => setViewMode('editor')}
+              className={`p-1.5 rounded-md transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+                viewMode === 'editor'
+                  ? 'bg-[var(--bg-primary)] text-[var(--accent)] shadow-sm'
+                  : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
+              }`}
+              title="Editor only"
+              aria-pressed={viewMode === 'editor'}
+            >
+              <Edit3 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('split')}
+              className={`p-1.5 rounded-md transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+                viewMode === 'split'
+                  ? 'bg-[var(--bg-primary)] text-[var(--accent)] shadow-sm'
+                  : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
+              }`}
+              title="Split view"
+              aria-pressed={viewMode === 'split'}
+            >
+              <Columns2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('preview')}
+              className={`p-1.5 rounded-md transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+                viewMode === 'preview'
+                  ? 'bg-[var(--bg-primary)] text-[var(--accent)] shadow-sm'
+                  : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
+              }`}
+              title="Preview only"
+              aria-pressed={viewMode === 'preview'}
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
