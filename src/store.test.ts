@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { isValidBackup, useNoteStore } from './store'
+import { buildAIExport, isValidBackup, useNoteStore } from './store'
 
 function freshStore() {
   // Reset to a known empty state with default folders/tags
@@ -132,6 +132,73 @@ describe('useNoteStore', () => {
       expect(state.notes.find((n) => n.id === id)?.title).toBe('keep me')
       expect(state.notes.find((n) => n.id === 'new-id')?.title).toBe('new one')
     })
+  })
+})
+
+describe('buildAIExport', () => {
+  beforeEach(() => {
+    useNoteStore.getState().resetAll()
+  })
+
+  it('emits the v1 format envelope and stats', () => {
+    useNoteStore.getState().addNote({ title: 'Hello', content: 'A simple note.' })
+    const ex = buildAIExport({
+      notes: useNoteStore.getState().notes,
+      folders: useNoteStore.getState().folders,
+      tags: useNoteStore.getState().tags,
+    })
+    expect(ex.format).toBe('plume.ai-export.v1')
+    expect(ex.stats.notes).toBe(1)
+    expect(ex.stats.approxTokensTotal).toBeGreaterThan(0)
+    expect(ex.notes[0].title).toBe('Hello')
+    expect(ex.notes[0].folder).toBe('Inbox')
+    expect(ex.notes[0].snippet).toContain('A simple note')
+  })
+
+  it('resolves outbound + inbound wikilinks by title', () => {
+    useNoteStore.getState().addNote({ title: 'A', content: 'See [[B]] and [[C]].' })
+    useNoteStore.getState().addNote({ title: 'B', content: 'Back to [[A]].' })
+    useNoteStore.getState().addNote({ title: 'C', content: 'Standalone.' })
+    const { notes, folders, tags } = useNoteStore.getState()
+    const ex = buildAIExport({ notes, folders, tags })
+    const a = ex.notes.find((n) => n.title === 'A')!
+    const b = ex.notes.find((n) => n.title === 'B')!
+    expect(a.outbound).toEqual(expect.arrayContaining(['B', 'C']))
+    expect(a.inbound).toEqual(['B'])
+    expect(b.outbound).toEqual(['A'])
+    expect(b.inbound).toEqual(['A'])
+    // Edges in the graph (from / to are note ids)
+    expect(ex.graph.edges.length).toBe(3)
+  })
+
+  it('counts notes per tag', () => {
+    useNoteStore.getState().addTag('Work', '#0ea5e9')
+    const tagId = useNoteStore.getState().tags.find((t) => t.name === 'Work')!.id
+    useNoteStore.getState().addNote({ tags: [tagId] })
+    useNoteStore.getState().addNote({ tags: [tagId] })
+    useNoteStore.getState().addNote({})
+    const { notes, folders, tags } = useNoteStore.getState()
+    const ex = buildAIExport({ notes, folders, tags })
+    const work = ex.tags.find((t) => t.name === 'Work')!
+    expect(work.noteCount).toBe(2)
+  })
+
+  it('snippets strip frontmatter, fences, links, and markdown punctuation', () => {
+    useNoteStore.getState().addNote({
+      title: 'Demo',
+      content: '---\ntitle: x\n---\n\n**Hello** and [[Other]] and `code`.',
+    })
+    const ex = buildAIExport({
+      notes: useNoteStore.getState().notes,
+      folders: useNoteStore.getState().folders,
+      tags: useNoteStore.getState().tags,
+    })
+    const demo = ex.notes.find((n) => n.title === 'Demo')!
+    expect(demo.snippet).not.toContain('---')
+    expect(demo.snippet).not.toContain('**')
+    expect(demo.snippet).not.toContain('[[')
+    expect(demo.snippet).toContain('Hello')
+    expect(demo.snippet).toContain('Other')
   })
 })
 

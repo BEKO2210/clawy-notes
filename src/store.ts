@@ -107,6 +107,163 @@ export function isValidBackup(value: unknown): value is PlumeBackup {
   )
 }
 
+// ─── AI Export ────────────────────────────────────────────────────────────
+// A compact, derived representation of the user's notes optimized for fast
+// consumption by AI agents (e.g. Claude via MCP). The schema is described
+// in PLUME_AI_FORMAT.md. Bumping `format` is a breaking change.
+
+export interface PlumeAINote {
+  id: string
+  title: string
+  /** Folder name or null if untyped. */
+  folder: string | null
+  tags: string[]              // tag names, not ids
+  createdAt: string
+  updatedAt: string
+  isPinned: boolean
+  isArchived: boolean
+  content: string
+  /** Approx. token count (4 chars / token heuristic). */
+  approxTokens: number
+  /** Outbound wikilinks ([[Target]]) — note titles, not necessarily existing. */
+  outbound: string[]
+  /** Inbound wikilinks — titles of notes that reference this one. */
+  inbound: string[]
+  /** First 280 chars of stripped content for snippet/summary use. */
+  snippet: string
+}
+
+export interface PlumeAIExport {
+  format: 'plume.ai-export.v1'
+  exportedAt: string
+  app: { name: 'Plume'; version: string }
+  stats: {
+    notes: number
+    folders: number
+    tags: number
+    approxTokensTotal: number
+    wikilinks: number
+  }
+  folders: { id: string; name: string; color: string; parentId: string | null }[]
+  tags: { id: string; name: string; color: string; noteCount: number }[]
+  notes: PlumeAINote[]
+  graph: {
+    nodes: { id: string; title: string }[]
+    edges: { from: string; to: string }[]  // by note id
+  }
+}
+
+const WIKILINK_RE = /\[\[\s*([^\]\n]+?)\s*\]\]/g
+
+function extractWikilinks(content: string): string[] {
+  const out: string[] = []
+  for (const m of content.matchAll(WIKILINK_RE)) out.push(m[1])
+  return out
+}
+
+function stripForSnippet(content: string): string {
+  return content
+    .replace(/^---\n[\s\S]*?\n---\n?/, '')
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/\[\[([^\]]+)\]\]/g, '$1')
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/[#*_~`>]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+export function buildAIExport(
+  state: { notes: Note[]; folders: Folder[]; tags: Tag[] },
+  appVersion = '1.0',
+): PlumeAIExport {
+  const folderById = new Map(state.folders.map((f) => [f.id, f]))
+  const tagById = new Map(state.tags.map((t) => [t.id, t]))
+  const titleToId = new Map<string, string>()
+  for (const n of state.notes) titleToId.set(n.title.toLowerCase(), n.id)
+
+  const inboundMap = new Map<string, string[]>()
+  let edgeCount = 0
+  for (const n of state.notes) {
+    const out = extractWikilinks(n.content)
+    for (const target of out) {
+      const targetId = titleToId.get(target.toLowerCase())
+      if (!targetId || targetId === n.id) continue
+      const arr = inboundMap.get(targetId) ?? []
+      arr.push(n.title)
+      inboundMap.set(targetId, arr)
+      edgeCount++
+    }
+  }
+
+  const aiNotes: PlumeAINote[] = state.notes.map((n) => {
+    const outboundRaw = extractWikilinks(n.content)
+    return {
+      id: n.id,
+      title: n.title,
+      folder: n.folderId ? folderById.get(n.folderId)?.name ?? null : null,
+      tags: n.tags
+        .map((id) => tagById.get(id)?.name)
+        .filter((x): x is string => Boolean(x)),
+      createdAt: n.createdAt,
+      updatedAt: n.updatedAt,
+      isPinned: n.isPinned,
+      isArchived: n.isArchived,
+      content: n.content,
+      approxTokens: Math.max(1, Math.round(n.content.length / 4)),
+      outbound: Array.from(new Set(outboundRaw)),
+      inbound: inboundMap.get(n.id) ?? [],
+      snippet: stripForSnippet(n.content).slice(0, 280),
+    }
+  })
+
+  const tagNoteCounts = new Map<string, number>()
+  for (const n of state.notes) {
+    for (const tagId of n.tags) {
+      tagNoteCounts.set(tagId, (tagNoteCounts.get(tagId) ?? 0) + 1)
+    }
+  }
+
+  const edges: { from: string; to: string }[] = []
+  for (const n of state.notes) {
+    for (const target of extractWikilinks(n.content)) {
+      const targetId = titleToId.get(target.toLowerCase())
+      if (!targetId || targetId === n.id) continue
+      edges.push({ from: n.id, to: targetId })
+    }
+  }
+
+  return {
+    format: 'plume.ai-export.v1',
+    exportedAt: new Date().toISOString(),
+    app: { name: 'Plume', version: appVersion },
+    stats: {
+      notes: state.notes.length,
+      folders: state.folders.length,
+      tags: state.tags.length,
+      approxTokensTotal: aiNotes.reduce((a, n) => a + n.approxTokens, 0),
+      wikilinks: edgeCount,
+    },
+    folders: state.folders.map((f) => ({
+      id: f.id,
+      name: f.name,
+      color: f.color,
+      parentId: f.parentId,
+    })),
+    tags: state.tags.map((t) => ({
+      id: t.id,
+      name: t.name,
+      color: t.color,
+      noteCount: tagNoteCounts.get(t.id) ?? 0,
+    })),
+    notes: aiNotes,
+    graph: {
+      nodes: state.notes.map((n) => ({ id: n.id, title: n.title })),
+      edges,
+    },
+  }
+}
+
 const generateId = () => crypto.randomUUID()
 
 const defaultFolders: Folder[] = [

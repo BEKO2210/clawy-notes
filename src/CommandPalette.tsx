@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   FileText, Plus, Sun, Moon, Settings as SettingsIcon, Archive,
-  Pin, Search, Tag as TagIcon, FlaskConical, Trash2,
+  Pin, Search, Tag as TagIcon, FlaskConical, Trash2, Network,
 } from 'lucide-react'
 import { useNoteStore } from './store'
 import type { Note } from './types'
@@ -30,6 +30,7 @@ interface CommandPaletteProps {
   onClose: () => void
   onOpenSettings: () => void
   onOpenAudit: () => void
+  onOpenGraph: () => void
 }
 
 // Sequential subsequence match. Returns score (lower = better) or -1 for no match.
@@ -53,7 +54,7 @@ function fuzzyScore(query: string, text: string): number {
   return lastMatch + totalGap * 2
 }
 
-export function CommandPalette({ onClose, onOpenSettings, onOpenAudit }: CommandPaletteProps) {
+export function CommandPalette({ onClose, onOpenSettings, onOpenAudit, onOpenGraph }: CommandPaletteProps) {
   const {
     notes, setActiveNote, addNote, toggleDarkMode, darkMode, setSidebarOpen,
     activeNoteId, pinNote, archiveNote, deleteNote,
@@ -111,6 +112,13 @@ export function CommandPalette({ onClose, onOpenSettings, onOpenAudit }: Command
       run: () => onOpenAudit(),
     },
     {
+      id: 'open-graph',
+      label: 'Open 3D graph view',
+      hint: 'Cmd+G',
+      icon: <Network className="w-4 h-4" />,
+      run: () => onOpenGraph(),
+    },
+    {
       id: 'focus-search',
       label: 'Focus sidebar search',
       hint: 'Cmd+K',
@@ -147,7 +155,7 @@ export function CommandPalette({ onClose, onOpenSettings, onOpenAudit }: Command
         ]
       : []),
   ], [
-    addNote, toggleDarkMode, darkMode, onOpenSettings, onOpenAudit,
+    addNote, toggleDarkMode, darkMode, onOpenSettings, onOpenAudit, onOpenGraph,
     setSidebarOpen, activeNoteId, pinNote, archiveNote, deleteNote,
   ])
 

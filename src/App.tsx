@@ -15,6 +15,10 @@ import { CommandPalette } from './CommandPalette'
 import { RightSidebar } from './RightSidebar'
 import { Picker } from './Picker'
 
+const GraphView = lazy(async () => ({
+  default: (await import('./GraphView')).GraphView,
+}))
+
 const TAG_PALETTE = [
   '#0ea5e9', '#22c55e', '#f59e0b', '#ef4444',
   '#8b5cf6', '#ec4899', '#14b8a6', '#a3a3a3',
@@ -1020,20 +1024,37 @@ function MobileFab({
     run()
   }
 
+  // The FAB doubles as a universal "close" while any overlay is up: if
+  // the sidebar drawer is open or another overlay is consuming the
+  // screen, tapping + first dismisses it instead of opening the sheet.
+  // This way the user always has a clear escape with one tap.
+  const anyOverlay = sidebarOpen || open
+  const handleTap = () => {
+    if (open) {
+      setOpen(false)
+      return
+    }
+    if (sidebarOpen) {
+      setSidebarOpen(false)
+      return
+    }
+    setOpen(true)
+  }
+
   return (
     <div className="sm:hidden">
       <button
-        onClick={() => setOpen((v) => !v)}
-        aria-label={open ? 'Close quick actions' : 'Open quick actions'}
+        onClick={handleTap}
+        aria-label={open ? 'Close quick actions' : sidebarOpen ? 'Close sidebar' : 'Open quick actions'}
         aria-expanded={open}
         className={`fixed bottom-4 right-4 z-[55] w-14 h-14 rounded-full shadow-lg active:scale-95 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
-          open
+          anyOverlay
             ? 'bg-[var(--bg-secondary)] border border-[var(--bg-tertiary)] text-[var(--text-primary)]'
             : 'bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)]'
         }`}
         style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
       >
-        <Plus className={`w-6 h-6 mx-auto transition-transform duration-200 ${open ? 'rotate-45' : ''}`} />
+        <Plus className={`w-6 h-6 mx-auto transition-transform duration-200 ${anyOverlay ? 'rotate-45' : ''}`} />
       </button>
 
       <Picker open={open} onClose={() => setOpen(false)} title="Quick actions">
@@ -1122,6 +1143,7 @@ function App() {
     return new URLSearchParams(window.location.search).get('audit') === '1'
   })
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [graphOpen, setGraphOpen] = useState(false)
 
   useEffect(() => {
     if (darkMode) {
@@ -1158,6 +1180,12 @@ function App() {
       if (meta && key === 'p') {
         e.preventDefault()
         setPaletteOpen(true)
+        return
+      }
+
+      if (meta && key === 'g') {
+        e.preventDefault()
+        setGraphOpen(true)
         return
       }
 
@@ -1214,7 +1242,28 @@ function App() {
             setPaletteOpen(false)
             setAuditOpen(true)
           }}
+          onOpenGraph={() => {
+            setPaletteOpen(false)
+            setGraphOpen(true)
+          }}
         />
+      )}
+      {graphOpen && (
+        <Suspense fallback={
+          <div className="fixed inset-0 z-[80] bg-[var(--bg-primary)] flex items-center justify-center">
+            <div className="text-[var(--text-tertiary)] text-sm flex items-center gap-3">
+              <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="" className="w-7 h-7 animate-pulse-soft" />
+              Loading graph view…
+            </div>
+          </div>
+        }>
+          <GraphView
+            onClose={() => setGraphOpen(false)}
+            onPickNote={(id) => {
+              useNoteStore.getState().setActiveNote(id)
+            }}
+          />
+        </Suspense>
       )}
     </div>
   )
