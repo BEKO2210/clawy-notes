@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import {
   Plus, Search, Menu, Moon, Sun, Eye, Edit3, Columns2,
   Folder, Tag, Pin, Archive, Trash2, ChevronLeft, FileText,
@@ -6,8 +6,24 @@ import {
 } from 'lucide-react'
 import { useNoteStore } from './store'
 import { renderMarkdown, extractTitle, formatDate } from './lib'
-import { MarkdownEditor, type MarkdownEditorHandle } from './MarkdownEditor'
+import type { MarkdownEditorHandle } from './MarkdownEditor'
 import './App.css'
+
+const MarkdownEditor = lazy(async () => ({
+  default: (await import('./MarkdownEditor')).MarkdownEditor,
+}))
+
+function EditorSkeleton() {
+  return (
+    <div className="h-full w-full p-5 space-y-3" aria-hidden>
+      <div className="h-5 w-2/5 rounded bg-[var(--bg-tertiary)] animate-pulse-soft" />
+      <div className="h-3 w-11/12 rounded bg-[var(--bg-tertiary)] animate-pulse-soft" />
+      <div className="h-3 w-10/12 rounded bg-[var(--bg-tertiary)] animate-pulse-soft" />
+      <div className="h-3 w-9/12 rounded bg-[var(--bg-tertiary)] animate-pulse-soft" />
+      <div className="h-3 w-7/12 rounded bg-[var(--bg-tertiary)] animate-pulse-soft" />
+    </div>
+  )
+}
 
 // Simple toolbar component
 function Toolbar({ onInsert }: { onInsert: (text: string) => void }) {
@@ -43,6 +59,18 @@ function Sidebar() {
   const [showNewFolder, setShowNewFolder] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
   const [activeFolder, setActiveFolder] = useState<string | null>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const focus = () => {
+      requestAnimationFrame(() => {
+        searchRef.current?.focus()
+        searchRef.current?.select()
+      })
+    }
+    window.addEventListener('clawy:focus-search', focus)
+    return () => window.removeEventListener('clawy:focus-search', focus)
+  }, [])
 
   const displayedNotes = searchQuery
     ? searchNotes(searchQuery)
@@ -137,14 +165,18 @@ function Sidebar() {
       {/* Search */}
       <div className="px-3 py-2">
         <div className="relative">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] pointer-events-none" />
           <input
+            ref={searchRef}
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search notes..."
-            className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            className="w-full pl-9 pr-12 py-2 rounded-lg bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
           />
+          <kbd className="absolute right-2 top-1/2 -translate-y-1/2 hidden md:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-[var(--bg-tertiary)] bg-[var(--bg-secondary)] text-[10px] font-mono text-[var(--text-tertiary)]">
+            ⌘K
+          </kbd>
         </div>
       </div>
 
@@ -232,13 +264,35 @@ function Sidebar() {
             >
               <div className="flex items-start gap-2">
                 {note.isPinned && <Pin className="w-3 h-3 text-[var(--accent)] mt-0.5 flex-shrink-0" />}
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-[var(--text-primary)] truncate">
                     {note.title}
                   </p>
                   <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
                     {formatDate(note.updatedAt)}
                   </p>
+                  {note.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {note.tags.slice(0, 3).map(tagId => {
+                        const tag = tags.find(t => t.id === tagId)
+                        if (!tag) return null
+                        return (
+                          <span
+                            key={tag.id}
+                            className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium leading-none"
+                            style={{ backgroundColor: tag.color + '22', color: tag.color }}
+                          >
+                            {tag.name}
+                          </span>
+                        )
+                      })}
+                      {note.tags.length > 3 && (
+                        <span className="text-[10px] leading-none text-[var(--text-tertiary)] self-center">
+                          +{note.tags.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </button>
@@ -260,6 +314,15 @@ function Editor() {
   const editorRef = useRef<MarkdownEditorHandle>(null)
   const content = note?.content ?? ''
 
+  const [confirmDeleteFor, setConfirmDeleteFor] = useState<string | null>(null)
+  const confirmingDelete = note != null && confirmDeleteFor === note.id
+
+  useEffect(() => {
+    if (!confirmingDelete) return
+    const timer = window.setTimeout(() => setConfirmDeleteFor(null), 3000)
+    return () => window.clearTimeout(timer)
+  }, [confirmingDelete])
+
   const handleContentChange = useCallback((newContent: string) => {
     if (!note) return
     const title = extractTitle(newContent)
@@ -268,6 +331,16 @@ function Editor() {
 
   const handleInsert = (text: string) => {
     editorRef.current?.insertAtCursor(text)
+  }
+
+  const handleDelete = () => {
+    if (!note) return
+    if (confirmingDelete) {
+      deleteNote(note.id)
+      setConfirmDeleteFor(null)
+    } else {
+      setConfirmDeleteFor(note.id)
+    }
   }
 
   if (!note) {
@@ -297,9 +370,26 @@ function Editor() {
           <button onClick={() => archiveNote(note.id)} className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors" title="Archive">
             <Archive className="w-4 h-4 text-[var(--text-tertiary)]" />
           </button>
-          <button onClick={() => deleteNote(note.id)} className="p-2 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
-            <Trash2 className="w-4 h-4 text-[var(--text-tertiary)] hover:text-red-500" />
-          </button>
+          {confirmingDelete ? (
+            <button
+              onClick={handleDelete}
+              onBlur={() => setConfirmDeleteFor(null)}
+              autoFocus
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500 text-white text-xs font-medium animate-scale-in shadow-sm hover:bg-red-600 active-press"
+              title="Click again to confirm"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete?</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleDelete}
+              className="p-2 rounded-lg hover:bg-red-500/10 transition-colors group"
+              title="Delete"
+            >
+              <Trash2 className="w-4 h-4 text-[var(--text-tertiary)] group-hover:text-red-500 transition-colors" />
+            </button>
+          )}
           <div className="w-px h-6 bg-[var(--bg-tertiary)] mx-1" />
           <button
             onClick={() => setViewMode('editor')}
@@ -332,12 +422,14 @@ function Editor() {
       <div className="flex-1 flex overflow-hidden">
         {(viewMode === 'editor' || viewMode === 'split') && (
           <div className={`${viewMode === 'split' ? 'w-1/2' : 'w-full'} h-full`}>
-            <MarkdownEditor
-              ref={editorRef}
-              value={content}
-              onChange={handleContentChange}
-              darkMode={darkMode}
-            />
+            <Suspense fallback={<EditorSkeleton />}>
+              <MarkdownEditor
+                ref={editorRef}
+                value={content}
+                onChange={handleContentChange}
+                darkMode={darkMode}
+              />
+            </Suspense>
           </div>
         )}
         {(viewMode === 'preview' || viewMode === 'split') && (
@@ -362,7 +454,7 @@ function Editor() {
 
 // Main App
 function App() {
-  const { darkMode, toggleDarkMode } = useNoteStore()
+  const { darkMode, toggleDarkMode, addNote, sidebarOpen, setSidebarOpen } = useNoteStore()
 
   useEffect(() => {
     if (darkMode) {
@@ -371,6 +463,36 @@ function App() {
       document.documentElement.classList.remove('dark')
     }
   }, [darkMode])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const meta = e.metaKey || e.ctrlKey
+      const key = e.key.toLowerCase()
+
+      if (meta && key === 'n') {
+        e.preventDefault()
+        addNote({ title: 'New Note', content: '# New Note\n\nStart writing...' })
+        return
+      }
+
+      if (meta && key === 'k') {
+        e.preventDefault()
+        setSidebarOpen(true)
+        window.dispatchEvent(new Event('clawy:focus-search'))
+        return
+      }
+
+      if (e.key === 'Escape' && sidebarOpen) {
+        const isMobile = window.matchMedia('(max-width: 767px)').matches
+        if (isMobile) {
+          e.preventDefault()
+          setSidebarOpen(false)
+        }
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [addNote, sidebarOpen, setSidebarOpen])
 
   return (
     <div className="h-screen flex bg-[var(--bg-primary)]">
