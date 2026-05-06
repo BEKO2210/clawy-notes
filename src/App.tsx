@@ -419,6 +419,27 @@ function Sidebar() {
                 ))}
               </select>
             )}
+            <div className="flex items-center gap-1.5">
+              <button
+                type="submit"
+                disabled={!newFolderName.trim()}
+                className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded bg-[var(--accent)] text-white text-xs font-medium hover:bg-[var(--accent-hover)] disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] transition-all"
+              >
+                <Check className="w-3.5 h-3.5" />
+                Add
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNewFolder(false)
+                  setNewFolderName('')
+                  setNewFolderParent(null)
+                }}
+                className="px-2 py-1.5 rounded text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] active:scale-[0.98] transition-all"
+              >
+                Cancel
+              </button>
+            </div>
           </form>
         )}
         {!collapsedSections.folders && (
@@ -507,6 +528,26 @@ function Sidebar() {
                   style={{ backgroundColor: c, ...(newTagColor === c ? { boxShadow: `0 0 0 2px ${c}` } : {}) }}
                 />
               ))}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="submit"
+                disabled={!newTagName.trim()}
+                className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded bg-[var(--accent)] text-white text-xs font-medium hover:bg-[var(--accent-hover)] disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] transition-all"
+              >
+                <Check className="w-3.5 h-3.5" />
+                Add
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNewTag(false)
+                  setNewTagName('')
+                }}
+                className="px-2 py-1.5 rounded text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] active:scale-[0.98] transition-all"
+              >
+                Cancel
+              </button>
             </div>
           </form>
         )}
