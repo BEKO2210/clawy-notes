@@ -276,6 +276,84 @@
   border-bottom-color: var(--text-secondary);
 }
 
+.plume-callout {
+  border-left: 3px solid var(--callout-accent, var(--accent));
+  background-color: color-mix(in srgb, var(--callout-accent, var(--accent)) 8%, var(--bg-secondary));
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 12px 0;
+}
+
+.plume-callout-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--callout-accent, var(--accent));
+  text-transform: capitalize;
+  cursor: default;
+}
+
+details.plume-callout > summary.plume-callout-title {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+details.plume-callout > summary.plume-callout-title::-webkit-details-marker {
+  display: none;
+}
+
+details.plume-callout > summary.plume-callout-title::after {
+  content: '▸';
+  margin-left: auto;
+  transition: transform 0.15s ease;
+  font-size: 10px;
+}
+
+details.plume-callout[open] > summary.plume-callout-title::after {
+  transform: rotate(90deg);
+}
+
+.plume-callout-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  background-color: var(--callout-accent, var(--accent));
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-image: var(--callout-icon, none);
+  mask-image: var(--callout-icon, none);
+}
+
+.plume-callout-body {
+  margin-top: 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.plume-callout-body > :first-child { margin-top: 0; }
+.plume-callout-body > :last-child { margin-bottom: 0; }
+.plume-callout-body > p { margin: 6px 0; }
+
+.plume-callout-info     { --callout-accent: #3b82f6; }
+.plume-callout-tip      { --callout-accent: #14b8a6; }
+.plume-callout-note     { --callout-accent: #6366f1; }
+.plume-callout-warning  { --callout-accent: #f59e0b; }
+.plume-callout-caution  { --callout-accent: #f59e0b; }
+.plume-callout-danger   { --callout-accent: #ef4444; }
+.plume-callout-success  { --callout-accent: #22c55e; }
+.plume-callout-quote    { --callout-accent: #a3a3a3; }
+.plume-callout-todo     { --callout-accent: #0ea5e9; }
+.plume-callout-example  { --callout-accent: #8b5cf6; }
+
 .plume-task-checkbox {
   appearance: none;
   -webkit-appearance: none;
@@ -300,6 +378,15 @@
   background-size: 12px;
   background-repeat: no-repeat;
   background-position: center;
+}
+
+.plume-heading-flash {
+  animation: plumeHeadingFlash 0.8s ease-out;
+}
+
+@keyframes plumeHeadingFlash {
+  0%   { background-color: color-mix(in srgb, var(--accent) 25%, transparent); }
+  100% { background-color: transparent; }
 }
 
 /* Honor reduced-motion preference for users who set it */

@@ -46,6 +46,15 @@ function test() {
 
 [[Existing Note]] and [[Ghost Note That Does Not Exist]]
 
+> [!info]
+> An informational callout.
+
+> [!warning]+ Watch out
+> This one starts open.
+
+> [!tip]- Click to open
+> Collapsed by default.
+
 ---
 
 End.
@@ -86,6 +95,9 @@ const CHECKS: Check[] = [
   { id: 'frontmatter-row', label: 'Frontmatter row contains key/value', predicate: (h) => /<span class="plume-fm-key">title<\/span>[\s\S]*<span class="plume-fm-value">Test Note<\/span>/.test(h) },
   { id: 'hr', label: 'Renders <hr>', predicate: (h) => /<hr\s*\/?>/.test(h) },
   { id: 'no-script', label: 'Sanitizer strips <script>', predicate: (h) => !/<script/.test(h) },
+  { id: 'callout-info', label: 'Renders > [!info] callout', predicate: (h) => /plume-callout plume-callout-info/.test(h) },
+  { id: 'callout-warning-open', label: 'Collapsible callout with + opens by default', predicate: (h) => /<details[^>]+plume-callout-warning[^>]+open/.test(h) },
+  { id: 'callout-tip-collapsed', label: 'Collapsible callout with - is closed by default', predicate: (h) => /<details(?![^>]+open)[^>]+plume-callout-tip/.test(h) },
 ]
 
 export function AuditPage({ onClose }: { onClose: () => void }) {

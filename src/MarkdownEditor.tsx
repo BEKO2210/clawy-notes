@@ -148,17 +148,29 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
           const startLine = state.doc.lineAt(from)
           const endLine = state.doc.lineAt(to)
 
-          const changes = []
+          const changes: { from: number; insert: string }[] = []
           for (let n = startLine.number; n <= endLine.number; n++) {
             const line = state.doc.line(n)
-            // Skip if already prefixed (toggle off would be nice but keep it
-            // simple: just don't double-add the same prefix).
+            // Skip if already prefixed (don't double-add the same prefix).
             if (line.text.startsWith(prefix)) continue
             changes.push({ from: line.from, insert: prefix })
           }
 
           if (changes.length === 0) return
-          view.dispatch({ changes })
+
+          // Map the cursor explicitly: each change inserts `prefix` at its
+          // line.from. Any change at a position <= cursor pushes the cursor
+          // forward by prefix.length. This guarantees the caret lands AFTER
+          // the new list marker (e.g. after "- " or "1. ") so the user can
+          // start typing immediately, instead of stuck before the marker.
+          const insertPositions = changes.map((c) => c.from).sort((a, b) => a - b)
+          const shift = (pos: number) =>
+            pos + insertPositions.filter((p) => p <= pos).length * prefix.length
+
+          view.dispatch({
+            changes,
+            selection: { anchor: shift(from), head: shift(to) },
+          })
           view.focus()
         },
 

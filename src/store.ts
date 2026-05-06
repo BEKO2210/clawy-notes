@@ -11,6 +11,7 @@ interface NoteStore {
   // UI State
   activeNoteId: string | null
   sidebarOpen: boolean
+  rightSidebarOpen: boolean
   darkMode: boolean
   viewMode: ViewMode
   searchQuery: string
@@ -30,6 +31,7 @@ interface NoteStore {
   
   setActiveNote: (id: string | null) => void
   setSidebarOpen: (open: boolean) => void
+  setRightSidebarOpen: (open: boolean) => void
   toggleDarkMode: () => void
   setViewMode: (mode: ViewMode) => void
   setSearchQuery: (query: string) => void
@@ -90,6 +92,7 @@ export const useNoteStore = create<NoteStore>()(
       
       activeNoteId: null,
       sidebarOpen: true,
+      rightSidebarOpen: true,
       darkMode: false,
       viewMode: 'split',
       searchQuery: '',
@@ -176,6 +179,7 @@ export const useNoteStore = create<NoteStore>()(
       
       setActiveNote: (id) => set({ activeNoteId: id }),
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
+      setRightSidebarOpen: (open) => set({ rightSidebarOpen: open }),
       toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode })),
       setViewMode: (mode) => set({ viewMode: mode }),
       setSearchQuery: (query) => set({ searchQuery: query }),
@@ -247,6 +251,7 @@ export const useNoteStore = create<NoteStore>()(
         tags: state.tags,
         darkMode: state.darkMode,
         sidebarOpen: state.sidebarOpen,
+        rightSidebarOpen: state.rightSidebarOpen,
         viewMode: state.viewMode,
       }),
     }

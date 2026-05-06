@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extractTitle, formatDate, renderMarkdown, toggleTaskInContent } from './lib'
+import { extractTitle, extractOutline, formatDate, renderMarkdown, toggleTaskInContent } from './lib'
 
 describe('extractTitle', () => {
   it('uses the first heading as the title', () => {
@@ -31,6 +31,15 @@ describe('extractTitle', () => {
     expect(extractTitle('a `code` snippet')).toBe('a code snippet')
     expect(extractTitle('# Hello **world**')).toBe('Hello world')
     expect(extractTitle('See [Plume](https://example.com)')).toBe('See Plume')
+  })
+
+  it('strips list markers from the title display', () => {
+    expect(extractTitle('- [ ] Belkis Aslani')).toBe('Belkis Aslani')
+    expect(extractTitle('- [x] done thing')).toBe('done thing')
+    expect(extractTitle('- bullet item')).toBe('bullet item')
+    expect(extractTitle('* another bullet')).toBe('another bullet')
+    expect(extractTitle('1. numbered')).toBe('numbered')
+    expect(extractTitle('> quoted')).toBe('quoted')
   })
 })
 
@@ -141,11 +150,60 @@ describe('renderMarkdown', () => {
     expect(html).toMatch(/class="plume-copy"[^>]*>Copy<\/button>/)
   })
 
+  it('renders > [!info] callout', () => {
+    const html = renderMarkdown('> [!info]\n> Heads up!')
+    expect(html).toContain('plume-callout plume-callout-info')
+    expect(html).toContain('Heads up!')
+  })
+
+  it('renders collapsible callout with custom title', () => {
+    const html = renderMarkdown('> [!warning]- Be careful\n> Hidden by default')
+    expect(html).toContain('<details')
+    expect(html).toContain('plume-callout-warning')
+    expect(html).toContain('Be careful')
+    // No `open` attribute when marker is `-`
+    expect(html).not.toMatch(/<details[^>]+open/)
+  })
+
+  it('does not render unknown callout variants', () => {
+    const html = renderMarkdown('> [!unknownvariant]\n> body')
+    expect(html).not.toContain('plume-callout')
+    // Falls through to a regular blockquote
+    expect(html).toContain('<blockquote>')
+  })
+
   it('assigns sequential data-task-idx to task checkboxes', () => {
     const html = renderMarkdown('- [ ] one\n- [x] two\n- [ ] three')
     expect(html).toContain('data-task-idx="0"')
     expect(html).toContain('data-task-idx="1"')
     expect(html).toContain('data-task-idx="2"')
+  })
+})
+
+describe('extractOutline', () => {
+  it('returns headings up to the maxLevel', () => {
+    const md = '# H1\n\nbody\n## H2\n### H3\n#### H4\nrest'
+    const outline = extractOutline(md, 3)
+    expect(outline.map((o) => [o.level, o.text])).toEqual([
+      [1, 'H1'],
+      [2, 'H2'],
+      [3, 'H3'],
+    ])
+  })
+
+  it('strips inline markdown from heading text', () => {
+    const outline = extractOutline('# **Hello** *world*')
+    expect(outline[0].text).toBe('Hello world')
+  })
+
+  it('ignores hash-like lines inside fenced code', () => {
+    const md = '# Title\n\n```\n# This is not a heading\n```\n\n## Real heading'
+    const outline = extractOutline(md)
+    expect(outline.map((o) => o.text)).toEqual(['Title', 'Real heading'])
+  })
+
+  it('returns empty for content without headings', () => {
+    expect(extractOutline('Just text.\n\nAnother line.')).toEqual([])
   })
 })
 
