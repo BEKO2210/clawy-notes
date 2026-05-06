@@ -276,6 +276,67 @@
   border-bottom-color: var(--text-secondary);
 }
 
+/* KaTeX + Mermaid placeholders shown briefly while the lazy chunk loads */
+
+.plume-katex-inline[data-katex] {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.9em;
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.plume-katex-block[data-katex] {
+  display: block;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  padding: 12px;
+  border-radius: 6px;
+  margin: 12px 0;
+  text-align: center;
+  font-size: 0.95em;
+}
+
+.plume-katex-block {
+  display: block;
+  margin: 12px 0;
+  text-align: center;
+  overflow-x: auto;
+}
+
+.plume-mermaid {
+  display: flex;
+  justify-content: center;
+  margin: 16px 0;
+  padding: 12px;
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--bg-tertiary);
+  overflow-x: auto;
+}
+
+.plume-mermaid[data-mermaid] {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  white-space: pre;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-align: left;
+  display: block;
+}
+
+.plume-mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.plume-mermaid-error {
+  color: var(--error, #ef4444);
+  font-size: 13px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
 .plume-callout {
   border-left: 3px solid var(--callout-accent, var(--accent));
   background-color: color-mix(in srgb, var(--callout-accent, var(--accent)) 8%, var(--bg-secondary));

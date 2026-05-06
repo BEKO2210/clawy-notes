@@ -165,6 +165,29 @@ describe('renderMarkdown', () => {
     expect(html).not.toMatch(/<details[^>]+open/)
   })
 
+  it('emits placeholder for inline math $...$', () => {
+    const html = renderMarkdown('Newton: $F = ma$ classic.')
+    expect(html).toContain('class="plume-katex-inline"')
+    expect(html).toContain('data-katex="inline"')
+    expect(html).toContain('F = ma')
+  })
+
+  it('emits placeholder for block math $$...$$', () => {
+    const html = renderMarkdown('$$\nE = mc^2\n$$')
+    expect(html).toContain('class="plume-katex-block"')
+    expect(html).toContain('data-katex="block"')
+    expect(html).toContain('E = mc^2')
+  })
+
+  it('routes ```mermaid blocks to a mermaid placeholder', () => {
+    const html = renderMarkdown('```mermaid\ngraph TD\nA-->B\n```')
+    expect(html).toContain('class="plume-mermaid"')
+    expect(html).toContain('data-mermaid')
+    expect(html).toContain('graph TD')
+    // Should NOT use the regular code-block wrapper
+    expect(html).not.toMatch(/class="plume-codeblock"[^>]*data-lang="mermaid"/)
+  })
+
   it('does not render unknown callout variants', () => {
     const html = renderMarkdown('> [!unknownvariant]\n> body')
     expect(html).not.toContain('plume-callout')

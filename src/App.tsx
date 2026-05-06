@@ -141,17 +141,18 @@ function Toolbar({ onWrap, onPrefix, onLink, onImage, onCodeBlock, onTable, onHr
 function Sidebar() {
   const {
     notes, folders, tags, activeNoteId, sidebarOpen, searchQuery,
+    activeFolderId, setActiveFolder,
     setActiveNote, setSidebarOpen, setSearchQuery, addNote, addFolder,
     addTag, deleteTag,
     getNotesByFolder, getPinnedNotes, searchNotes
   } = useNoteStore()
+  const activeFolder = activeFolderId
 
   const [showNewFolder, setShowNewFolder] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
   const [showNewTag, setShowNewTag] = useState(false)
   const [newTagName, setNewTagName] = useState('')
   const [newTagColor, setNewTagColor] = useState<string>(TAG_PALETTE[0])
-  const [activeFolder, setActiveFolder] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
 
@@ -509,7 +510,7 @@ function Sidebar() {
 // wikilink navigation, and copy-buttons inside fenced code blocks.
 function PreviewPane({ note }: { note: Note }) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const { notes, updateNote, addNote, setActiveNote } = useNoteStore()
+  const { notes, updateNote, addNote, setActiveNote, darkMode } = useNoteStore()
   const existingTitles = useMemo(
     () => new Set(notes.filter((n) => !n.isArchived).map((n) => n.title)),
     [notes],
@@ -518,6 +519,74 @@ function PreviewPane({ note }: { note: Note }) {
     () => renderMarkdown(note.content, { existingTitles }),
     [note.content, existingTitles],
   )
+
+  // Lazy-render KaTeX + Mermaid in any [data-katex] / [data-mermaid] elements.
+  // The chunks (katex + mermaid) only download when the active note actually
+  // needs them — keeps the initial bundle small.
+  useEffect(() => {
+    const root = containerRef.current
+    if (!root) return
+    let cancelled = false
+
+    const katexEls = Array.from(
+      root.querySelectorAll<HTMLElement>('[data-katex]'),
+    )
+    if (katexEls.length > 0) {
+      Promise.all([
+        import('katex'),
+        import('katex/dist/katex.min.css'),
+      ]).then(([{ default: katex }]) => {
+        if (cancelled) return
+        for (const el of katexEls) {
+          const tex = el.textContent ?? ''
+          const block = el.getAttribute('data-katex') === 'block'
+          try {
+            el.innerHTML = katex.renderToString(tex, {
+              displayMode: block,
+              throwOnError: false,
+              output: 'html',
+            })
+          } catch {
+            // katex.renderToString already swallows on throwOnError:false
+          }
+          el.removeAttribute('data-katex')
+        }
+      })
+    }
+
+    const mermaidEls = Array.from(
+      root.querySelectorAll<HTMLElement>('[data-mermaid]'),
+    )
+    if (mermaidEls.length > 0) {
+      import('mermaid').then(async ({ default: mermaid }) => {
+        if (cancelled) return
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: darkMode ? 'dark' : 'default',
+          securityLevel: 'strict',
+        })
+        for (const el of mermaidEls) {
+          const src = el.textContent ?? ''
+          const id = `m${Math.random().toString(36).slice(2, 10)}`
+          try {
+            const { svg } = await mermaid.render(id, src)
+            if (cancelled) return
+            el.innerHTML = svg
+          } catch (err) {
+            if (cancelled) return
+            el.innerHTML = ''
+            el.textContent = `Mermaid error: ${(err as Error).message}`
+            el.classList.add('plume-mermaid-error')
+          }
+          el.removeAttribute('data-mermaid')
+        }
+      })
+    }
+
+    return () => {
+      cancelled = true
+    }
+  }, [html, darkMode])
 
   useEffect(() => {
     const root = containerRef.current
@@ -615,7 +684,7 @@ function PreviewPane({ note }: { note: Note }) {
 
 // Main Editor Component
 function Editor() {
-  const { getActiveNote, updateNote, viewMode, setViewMode, deleteNote, pinNote, archiveNote, darkMode, sidebarOpen, tags, rightSidebarOpen, setRightSidebarOpen } = useNoteStore()
+  const { getActiveNote, updateNote, viewMode, setViewMode, deleteNote, pinNote, archiveNote, darkMode, sidebarOpen, tags, folders, rightSidebarOpen, setRightSidebarOpen } = useNoteStore()
   const note = getActiveNote()
   const editorRef = useRef<MarkdownEditorHandle>(null)
   const content = note?.content ?? ''
@@ -623,7 +692,9 @@ function Editor() {
   const [confirmDeleteFor, setConfirmDeleteFor] = useState<string | null>(null)
   const confirmingDelete = note != null && confirmDeleteFor === note.id
   const [showTagPicker, setShowTagPicker] = useState(false)
+  const [showFolderPicker, setShowFolderPicker] = useState(false)
   const tagPickerRef = useRef<HTMLDivElement>(null)
+  const folderPickerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!confirmingDelete) return
@@ -648,6 +719,30 @@ function Editor() {
       document.removeEventListener('keydown', onKey)
     }
   }, [showTagPicker])
+
+  useEffect(() => {
+    if (!showFolderPicker) return
+    const onClick = (e: MouseEvent) => {
+      if (!folderPickerRef.current?.contains(e.target as Node)) {
+        setShowFolderPicker(false)
+      }
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowFolderPicker(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [showFolderPicker])
+
+  const moveToFolder = (folderId: string) => {
+    if (!note) return
+    updateNote(note.id, { folderId })
+    setShowFolderPicker(false)
+  }
 
   const toggleNoteTag = (tagId: string) => {
     if (!note) return
@@ -723,6 +818,37 @@ function Editor() {
           {note.isPinned && <Pin className="w-4 h-4 text-[var(--accent)] flex-shrink-0" />}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0 flex-wrap">
+          <div className="relative" ref={folderPickerRef}>
+            <button
+              onClick={() => setShowFolderPicker(v => !v)}
+              className="p-2 rounded-lg transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+              title="Move to folder"
+              aria-expanded={showFolderPicker}
+            >
+              <Folder className="w-4 h-4" />
+            </button>
+            {showFolderPicker && (
+              <div className="absolute right-0 top-full mt-1 z-30 w-56 max-h-64 overflow-y-auto rounded-lg border border-[var(--bg-tertiary)] bg-[var(--bg-secondary)] shadow-xl p-1.5 animate-scale-in">
+                <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+                  Move to
+                </p>
+                {folders.map((f) => {
+                  const active = note.folderId === f.id
+                  return (
+                    <button
+                      key={f.id}
+                      onClick={() => moveToFolder(f.id)}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[var(--bg-tertiary)] transition-colors text-left"
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: f.color }} />
+                      <span className="text-sm text-[var(--text-primary)] truncate flex-1">{f.name}</span>
+                      {active && <Check className="w-3.5 h-3.5 text-[var(--accent)] flex-shrink-0" />}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
           <div className="relative" ref={tagPickerRef}>
             <button
               onClick={() => setShowTagPicker(v => !v)}

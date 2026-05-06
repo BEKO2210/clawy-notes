@@ -46,6 +46,7 @@ interface NoteStore {
   
   // UI State
   activeNoteId: string | null
+  activeFolderId: string | null     // null = "All Notes", '__archive__' = archive view
   sidebarOpen: boolean
   rightSidebarOpen: boolean
   darkMode: boolean
@@ -66,6 +67,7 @@ interface NoteStore {
   deleteTag: (id: string) => void
   
   setActiveNote: (id: string | null) => void
+  setActiveFolder: (id: string | null) => void
   setSidebarOpen: (open: boolean) => void
   setRightSidebarOpen: (open: boolean) => void
   toggleDarkMode: () => void
@@ -127,6 +129,7 @@ export const useNoteStore = create<NoteStore>()(
       tags: defaultTags,
       
       activeNoteId: null,
+      activeFolderId: null,
       sidebarOpen: true,
       rightSidebarOpen: true,
       darkMode: false,
@@ -136,18 +139,27 @@ export const useNoteStore = create<NoteStore>()(
       addNote: (note) => {
         const id = generateId()
         const now = new Date().toISOString()
+        // If the caller did not set a folder, drop the note into the
+        // currently-viewed folder (when the user has one selected). The
+        // archive view is treated as "no folder context" and falls back
+        // to inbox so notes don't get archived on creation.
+        const state = get()
+        const fallbackFolder =
+          state.activeFolderId && state.activeFolderId !== '__archive__'
+            ? state.activeFolderId
+            : 'inbox'
         const newNote: Note = {
           id,
           title: note.title || 'Untitled Note',
           content: note.content || '',
-          folderId: note.folderId || 'inbox',
+          folderId: note.folderId ?? fallbackFolder,
           tags: note.tags || [],
           createdAt: now,
           updatedAt: now,
           isPinned: false,
           isArchived: false,
         }
-        set((state) => ({ notes: [newNote, ...state.notes], activeNoteId: id }))
+        set((s) => ({ notes: [newNote, ...s.notes], activeNoteId: id }))
         return id
       },
       
@@ -214,6 +226,7 @@ export const useNoteStore = create<NoteStore>()(
       },
       
       setActiveNote: (id) => set({ activeNoteId: id }),
+      setActiveFolder: (id) => set({ activeFolderId: id }),
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
       setRightSidebarOpen: (open) => set({ rightSidebarOpen: open }),
       toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode })),

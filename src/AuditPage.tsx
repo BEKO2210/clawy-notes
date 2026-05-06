@@ -55,6 +55,18 @@ function test() {
 > [!tip]- Click to open
 > Collapsed by default.
 
+Inline math $E = mc^2$ and block math:
+
+$$
+\\sum_{i=1}^{n} x_i
+$$
+
+\`\`\`mermaid
+graph TD
+  A-->B
+  A-->C
+\`\`\`
+
 ---
 
 End.
@@ -98,6 +110,9 @@ const CHECKS: Check[] = [
   { id: 'callout-info', label: 'Renders > [!info] callout', predicate: (h) => /plume-callout plume-callout-info/.test(h) },
   { id: 'callout-warning-open', label: 'Collapsible callout with + opens by default', predicate: (h) => /<details[^>]+plume-callout-warning[^>]+open/.test(h) },
   { id: 'callout-tip-collapsed', label: 'Collapsible callout with - is closed by default', predicate: (h) => /<details(?![^>]+open)[^>]+plume-callout-tip/.test(h) },
+  { id: 'math-inline', label: 'Inline math $...$ gets katex placeholder', predicate: (h) => /class="plume-katex-inline"[^>]*data-katex="inline"/.test(h) },
+  { id: 'math-block', label: 'Block math $$...$$ gets katex placeholder', predicate: (h) => /class="plume-katex-block"[^>]*data-katex="block"/.test(h) },
+  { id: 'mermaid', label: '```mermaid block routes to mermaid placeholder', predicate: (h) => /class="plume-mermaid"[^>]*data-mermaid/.test(h) },
 ]
 
 export function AuditPage({ onClose }: { onClose: () => void }) {
