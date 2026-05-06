@@ -337,7 +337,11 @@ export function toggleTaskInContent(content: string, index: number): string {
 
 function stripMarkdown(s: string): string {
   return s
-    .replace(/^#+\s+/, '')
+    .replace(/^#+\s+/, '')                       // heading
+    .replace(/^[-*+]\s+\[[ xX]\]\s+/, '')        // task list "- [ ] "
+    .replace(/^[-*+]\s+/, '')                    // bullet list "- "
+    .replace(/^\d+\.\s+/, '')                    // ordered list "1. "
+    .replace(/^>\s+/, '')                        // blockquote "> "
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
     .replace(/\[\[([^\]]+)\]\]/g, '$1')

@@ -32,6 +32,15 @@ describe('extractTitle', () => {
     expect(extractTitle('# Hello **world**')).toBe('Hello world')
     expect(extractTitle('See [Plume](https://example.com)')).toBe('See Plume')
   })
+
+  it('strips list markers from the title display', () => {
+    expect(extractTitle('- [ ] Belkis Aslani')).toBe('Belkis Aslani')
+    expect(extractTitle('- [x] done thing')).toBe('done thing')
+    expect(extractTitle('- bullet item')).toBe('bullet item')
+    expect(extractTitle('* another bullet')).toBe('another bullet')
+    expect(extractTitle('1. numbered')).toBe('numbered')
+    expect(extractTitle('> quoted')).toBe('quoted')
+  })
 })
 
 describe('formatDate', () => {
