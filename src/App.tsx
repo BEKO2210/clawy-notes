@@ -3,7 +3,8 @@ import {
   Plus, Search, Menu, Moon, Sun, Eye, Edit3, Columns2,
   Folder, Tag, Pin, Archive, Trash2, ChevronLeft, FileText,
   Bold, Italic, Heading, List, CheckSquare,
-  Strikethrough, Code, Link as LinkIcon, Quote, ListOrdered
+  Strikethrough, Code, Link as LinkIcon, Quote, ListOrdered,
+  Table as TableIcon, Image as ImageIcon, Minus, Code2
 } from 'lucide-react'
 import { useNoteStore } from './store'
 import { renderMarkdown, extractTitle, formatDate } from './lib'
@@ -31,6 +32,10 @@ interface ToolbarProps {
   onWrap: (prefix: string, suffix?: string, placeholder?: string) => void
   onPrefix: (prefix: string) => void
   onLink: () => void
+  onImage: () => void
+  onCodeBlock: () => void
+  onTable: () => void
+  onHr: () => void
 }
 
 function ToolbarButton({
@@ -60,7 +65,7 @@ function ToolbarDivider() {
   return <span className="mx-0.5 h-5 w-px bg-[var(--bg-tertiary)] shrink-0" aria-hidden />
 }
 
-function Toolbar({ onWrap, onPrefix, onLink }: ToolbarProps) {
+function Toolbar({ onWrap, onPrefix, onLink, onImage, onCodeBlock, onTable, onHr }: ToolbarProps) {
   return (
     <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 sm:gap-1 sm:px-3 sm:py-2 border-b border-[var(--bg-tertiary)] bg-[var(--bg-secondary)]">
       <ToolbarButton onClick={() => onWrap('**', '**', 'bold')} title="Bold" shortcut="Ctrl+B">
@@ -94,6 +99,18 @@ function Toolbar({ onWrap, onPrefix, onLink }: ToolbarProps) {
       <ToolbarDivider />
       <ToolbarButton onClick={onLink} title="Link">
         <LinkIcon className="w-4 h-4" />
+      </ToolbarButton>
+      <ToolbarButton onClick={onImage} title="Image">
+        <ImageIcon className="w-4 h-4" />
+      </ToolbarButton>
+      <ToolbarButton onClick={onCodeBlock} title="Code block">
+        <Code2 className="w-4 h-4" />
+      </ToolbarButton>
+      <ToolbarButton onClick={onTable} title="Table">
+        <TableIcon className="w-4 h-4" />
+      </ToolbarButton>
+      <ToolbarButton onClick={onHr} title="Horizontal rule">
+        <Minus className="w-4 h-4" />
       </ToolbarButton>
     </div>
   )
@@ -395,8 +412,25 @@ function Editor() {
   }
 
   const handleLink = () => {
-    // [text](url) — wrap selection as the link text, leave cursor on url placeholder.
     editorRef.current?.wrapSelection('[', '](url)', 'link')
+  }
+
+  const handleImage = () => {
+    editorRef.current?.wrapSelection('![', '](url)', 'alt text')
+  }
+
+  const handleCodeBlock = () => {
+    editorRef.current?.wrapSelection('```\n', '\n```', 'code')
+  }
+
+  const handleTable = () => {
+    editorRef.current?.insertAtCursor(
+      '\n| Column 1 | Column 2 | Column 3 |\n| --- | --- | --- |\n| Row 1 | Row 1 | Row 1 |\n| Row 2 | Row 2 | Row 2 |\n',
+    )
+  }
+
+  const handleHr = () => {
+    editorRef.current?.insertAtCursor('\n\n---\n\n')
   }
 
   const handleDelete = () => {
@@ -483,7 +517,15 @@ function Editor() {
 
       {/* Toolbar */}
       {viewMode !== 'preview' && (
-        <Toolbar onWrap={handleWrap} onPrefix={handlePrefix} onLink={handleLink} />
+        <Toolbar
+          onWrap={handleWrap}
+          onPrefix={handlePrefix}
+          onLink={handleLink}
+          onImage={handleImage}
+          onCodeBlock={handleCodeBlock}
+          onTable={handleTable}
+          onHr={handleHr}
+        />
       )}
 
       {/* Editor / Preview */}
