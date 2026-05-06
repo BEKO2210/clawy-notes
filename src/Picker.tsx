@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { useBackHandler } from './useBackHandler'
 
 /**
  * Responsive picker container.
@@ -27,6 +28,8 @@ export function Picker({
   desktopWidthClass = 'sm:w-56',
 }: PickerProps) {
   const sheetRef = useRef<HTMLDivElement>(null)
+  // Back button closes the picker instead of leaving the page.
+  useBackHandler(open, onClose)
 
   useEffect(() => {
     if (!open) return

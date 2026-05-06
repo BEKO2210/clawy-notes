@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Download, Upload, RotateCcw, X, FileText, FolderClosed, Tag, Sparkles, MonitorDown } from 'lucide-react'
 import { buildAIExport, isValidBackup, useNoteStore, type PlumeBackup } from './store'
 import { getInstallState, subscribeInstallState, triggerInstall } from './pwaInstall'
+import { useBackHandler } from './useBackHandler'
 
 interface SettingsModalProps {
   onClose: () => void
@@ -27,6 +28,8 @@ type ImportMode = 'replace' | 'merge'
 
 export function SettingsModal({ onClose }: SettingsModalProps) {
   const { notes, folders, tags, replaceData, mergeData, resetAll } = useNoteStore()
+  // System back / browser back closes the modal instead of leaving the page.
+  useBackHandler(true, onClose)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
   const [importPreview, setImportPreview] = useState<{

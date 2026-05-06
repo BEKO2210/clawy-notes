@@ -34,6 +34,7 @@ import {
 } from './lib'
 import { FolderTree } from './FolderTree'
 import { HomeDashboard } from './HomeDashboard'
+import { useBackHandler } from './useBackHandler'
 import type { MarkdownEditorHandle } from './MarkdownEditor'
 import './App.css'
 
@@ -162,6 +163,21 @@ function Sidebar() {
     getNotesByFolder, getPinnedNotes, searchNotes
   } = useNoteStore()
   const activeFolder = activeFolderId
+
+  // The sidebar is part of the layout on desktop and an overlay drawer
+  // on mobile. We only want the back button to close it in the second
+  // case — otherwise desktop users would lose layout state.
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches,
+  )
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mql = window.matchMedia('(max-width: 767px)')
+    const onChange = () => setIsMobile(mql.matches)
+    mql.addEventListener('change', onChange)
+    return () => mql.removeEventListener('change', onChange)
+  }, [])
+  useBackHandler(isMobile && sidebarOpen, () => setSidebarOpen(false))
 
   const [showNewFolder, setShowNewFolder] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
@@ -1491,7 +1507,7 @@ function HydrationSplash() {
 
 // Main App
 function App() {
-  const { darkMode, toggleDarkMode, addNote, sidebarOpen, setSidebarOpen } = useNoteStore()
+  const { darkMode, toggleDarkMode, addNote, sidebarOpen, setSidebarOpen, activeNoteId, setActiveNote } = useNoteStore()
   const [hydrated, setHydrated] = useState(useNoteStore.persist.hasHydrated())
   const [auditOpen, setAuditOpen] = useState(() => {
     if (typeof window === 'undefined') return false
@@ -1499,6 +1515,15 @@ function App() {
   })
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [graphOpen, setGraphOpen] = useState(false)
+
+  // Wire the system back button (Android / iOS swipe-back / desktop browser
+  // back) to close whatever overlay is currently active rather than leaving
+  // the page. Each handler registers itself in a stack — most recently
+  // opened closes first.
+  useBackHandler(graphOpen, () => setGraphOpen(false))
+  useBackHandler(paletteOpen, () => setPaletteOpen(false))
+  useBackHandler(auditOpen, () => setAuditOpen(false))
+  useBackHandler(activeNoteId !== null, () => setActiveNote(null))
 
   useEffect(() => {
     if (darkMode) {
