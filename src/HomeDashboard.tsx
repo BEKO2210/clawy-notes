@@ -50,7 +50,7 @@ export function HomeDashboard({
 
   if (active.length === 0) {
     return (
-      <div className={`flex-1 flex items-center justify-center bg-[var(--bg-primary)] ${sidebarOpen ? '' : 'pl-12'}`}>
+      <div className="flex-1 flex items-center justify-center bg-[var(--bg-primary)]">
         <div className="text-center max-w-sm px-6">
           <FileText className="w-12 h-12 text-[var(--text-tertiary)] mx-auto mb-3" />
           <p className="text-lg font-medium text-[var(--text-secondary)]">Welcome to Plume</p>
