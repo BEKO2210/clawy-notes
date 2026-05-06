@@ -76,4 +76,8 @@ See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full design and data model.
 
 ## License
 
-MIT
+Plume is provided under the [Plume End-User License](./LICENSE) — free
+for any use (personal, commercial, non-profit, educational,
+governmental). The source is available, but redistribution and resale
+of the application as a whole are restricted. See `LICENSE` for the
+full terms.

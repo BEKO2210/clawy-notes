@@ -915,9 +915,21 @@ function RightSidebarContainer() {
   return <RightSidebar note={note} onClose={() => setRightSidebarOpen(false)} />
 }
 
+function HydrationSplash() {
+  return (
+    <div className="h-screen w-screen flex items-center justify-center bg-[var(--bg-primary)]">
+      <div className="flex items-center gap-3 text-[var(--text-tertiary)]">
+        <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="" className="w-8 h-8 animate-pulse-soft" />
+        <span className="text-sm font-medium">Loading your notes…</span>
+      </div>
+    </div>
+  )
+}
+
 // Main App
 function App() {
   const { darkMode, toggleDarkMode, addNote, sidebarOpen, setSidebarOpen } = useNoteStore()
+  const [hydrated, setHydrated] = useState(useNoteStore.persist.hasHydrated())
   const [auditOpen, setAuditOpen] = useState(() => {
     if (typeof window === 'undefined') return false
     return new URLSearchParams(window.location.search).get('audit') === '1'
@@ -931,6 +943,12 @@ function App() {
       document.documentElement.classList.remove('dark')
     }
   }, [darkMode])
+
+  useEffect(() => {
+    if (hydrated) return
+    const unsub = useNoteStore.persist.onFinishHydration(() => setHydrated(true))
+    return unsub
+  }, [hydrated])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -967,6 +985,10 @@ function App() {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [addNote, sidebarOpen, setSidebarOpen])
+
+  if (!hydrated) {
+    return <HydrationSplash />
+  }
 
   return (
     <div className="h-screen flex bg-[var(--bg-primary)]">
