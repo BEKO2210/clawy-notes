@@ -294,6 +294,34 @@ export function renderMarkdown(content: string, options: RenderOptions = {}): st
   })
 }
 
+export interface OutlineEntry {
+  level: number
+  text: string
+  line: number
+}
+
+// Extract H1-H3 (configurable) for the right-sidebar outline.
+export function extractOutline(content: string, maxLevel = 3): OutlineEntry[] {
+  // Strip frontmatter from line counting? We keep raw line numbers for now.
+  const lines = content.split('\n')
+  const out: OutlineEntry[] = []
+  let inFence = false
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (/^```/.test(line)) {
+      inFence = !inFence
+      continue
+    }
+    if (inFence) continue
+    const m = line.match(/^(#{1,6})\s+(.+?)\s*$/)
+    if (!m) continue
+    const level = m[1].length
+    if (level > maxLevel) continue
+    out.push({ level, text: stripMarkdown(m[2]), line: i })
+  }
+  return out
+}
+
 // Toggle the n-th task checkbox in source. Returns updated content.
 export function toggleTaskInContent(content: string, index: number): string {
   const re = /^(\s*[-*+]\s*\[)([ xX])(\])/gm

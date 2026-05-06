@@ -380,6 +380,15 @@ details.plume-callout[open] > summary.plume-callout-title::after {
   background-position: center;
 }
 
+.plume-heading-flash {
+  animation: plumeHeadingFlash 0.8s ease-out;
+}
+
+@keyframes plumeHeadingFlash {
+  0%   { background-color: color-mix(in srgb, var(--accent) 25%, transparent); }
+  100% { background-color: transparent; }
+}
+
 /* Honor reduced-motion preference for users who set it */
 @media (prefers-reduced-motion: reduce) {
   *,

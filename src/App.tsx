@@ -6,11 +6,13 @@ import {
   Bold, Italic, Heading, List, CheckSquare,
   Strikethrough, Code, Link as LinkIcon, Quote, ListOrdered,
   Table as TableIcon, Image as ImageIcon, Minus, Code2, X, Check,
-  Settings as SettingsIcon, Highlighter, ChevronUp, ChevronDown
+  Settings as SettingsIcon, Highlighter, ChevronUp, ChevronDown,
+  PanelRight
 } from 'lucide-react'
 import { SettingsModal } from './SettingsModal'
 import { AuditPage } from './AuditPage'
 import { CommandPalette } from './CommandPalette'
+import { RightSidebar } from './RightSidebar'
 
 const TAG_PALETTE = [
   '#0ea5e9', '#22c55e', '#f59e0b', '#ef4444',
@@ -579,9 +581,26 @@ function PreviewPane({ note }: { note: Note }) {
       }
     }
 
+    const onScrollToHeading = (e: Event) => {
+      const ce = e as CustomEvent<{ text: string }>
+      const text = ce.detail?.text
+      if (!text || !root) return
+      const headings = root.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6')
+      for (const h of headings) {
+        if (h.textContent?.trim() === text) {
+          h.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          h.classList.add('plume-heading-flash')
+          window.setTimeout(() => h.classList.remove('plume-heading-flash'), 800)
+          return
+        }
+      }
+    }
+
     root.addEventListener('click', onClick)
+    window.addEventListener('clawy:scroll-to-heading', onScrollToHeading)
     return () => {
       root.removeEventListener('click', onClick)
+      window.removeEventListener('clawy:scroll-to-heading', onScrollToHeading)
     }
   }, [note.id, note.content, notes, updateNote, addNote, setActiveNote])
 
@@ -596,7 +615,7 @@ function PreviewPane({ note }: { note: Note }) {
 
 // Main Editor Component
 function Editor() {
-  const { getActiveNote, updateNote, viewMode, setViewMode, deleteNote, pinNote, archiveNote, darkMode, sidebarOpen, tags } = useNoteStore()
+  const { getActiveNote, updateNote, viewMode, setViewMode, deleteNote, pinNote, archiveNote, darkMode, sidebarOpen, tags, rightSidebarOpen, setRightSidebarOpen } = useNoteStore()
   const note = getActiveNote()
   const editorRef = useRef<MarkdownEditorHandle>(null)
   const content = note?.content ?? ''
@@ -830,6 +849,18 @@ function Editor() {
               <Eye className="w-4 h-4" />
             </button>
           </div>
+          <button
+            onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
+            className={`hidden lg:inline-flex p-2 rounded-lg transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+              rightSidebarOpen
+                ? 'bg-[var(--accent)]/15 text-[var(--accent)] ring-1 ring-inset ring-[var(--accent)]/20'
+                : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+            }`}
+            title={rightSidebarOpen ? 'Hide inspector' : 'Show inspector'}
+            aria-pressed={rightSidebarOpen}
+          >
+            <PanelRight className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
@@ -875,6 +906,13 @@ function Editor() {
       </div>
     </div>
   )
+}
+
+function RightSidebarContainer() {
+  const { getActiveNote, rightSidebarOpen, setRightSidebarOpen } = useNoteStore()
+  const note = getActiveNote()
+  if (!note || !rightSidebarOpen) return null
+  return <RightSidebar note={note} onClose={() => setRightSidebarOpen(false)} />
 }
 
 // Main App
@@ -934,6 +972,7 @@ function App() {
     <div className="h-screen flex bg-[var(--bg-primary)]">
       <Sidebar />
       <Editor />
+      <RightSidebarContainer />
       <button
         onClick={toggleDarkMode}
         className="fixed bottom-4 right-4 p-3 rounded-full bg-[var(--bg-secondary)] border border-[var(--bg-tertiary)] shadow-lg hover-lift z-50"

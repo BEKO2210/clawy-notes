@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extractTitle, formatDate, renderMarkdown, toggleTaskInContent } from './lib'
+import { extractTitle, extractOutline, formatDate, renderMarkdown, toggleTaskInContent } from './lib'
 
 describe('extractTitle', () => {
   it('uses the first heading as the title', () => {
@@ -168,6 +168,33 @@ describe('renderMarkdown', () => {
     expect(html).toContain('data-task-idx="0"')
     expect(html).toContain('data-task-idx="1"')
     expect(html).toContain('data-task-idx="2"')
+  })
+})
+
+describe('extractOutline', () => {
+  it('returns headings up to the maxLevel', () => {
+    const md = '# H1\n\nbody\n## H2\n### H3\n#### H4\nrest'
+    const outline = extractOutline(md, 3)
+    expect(outline.map((o) => [o.level, o.text])).toEqual([
+      [1, 'H1'],
+      [2, 'H2'],
+      [3, 'H3'],
+    ])
+  })
+
+  it('strips inline markdown from heading text', () => {
+    const outline = extractOutline('# **Hello** *world*')
+    expect(outline[0].text).toBe('Hello world')
+  })
+
+  it('ignores hash-like lines inside fenced code', () => {
+    const md = '# Title\n\n```\n# This is not a heading\n```\n\n## Real heading'
+    const outline = extractOutline(md)
+    expect(outline.map((o) => o.text)).toEqual(['Title', 'Real heading'])
+  })
+
+  it('returns empty for content without headings', () => {
+    expect(extractOutline('Just text.\n\nAnother line.')).toEqual([])
   })
 })
 
