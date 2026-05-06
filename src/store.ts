@@ -40,6 +40,31 @@ interface NoteStore {
   getNotesByTag: (tagId: string) => Note[]
   getPinnedNotes: () => Note[]
   searchNotes: (query: string) => Note[]
+
+  // Bulk actions for import/export and reset
+  replaceData: (data: { notes: Note[]; folders: Folder[]; tags: Tag[] }) => void
+  mergeData: (data: { notes: Note[]; folders: Folder[]; tags: Tag[] }) => void
+  resetAll: () => void
+}
+
+export interface PlumeBackup {
+  version: 1
+  exportedAt: string
+  notes: Note[]
+  folders: Folder[]
+  tags: Tag[]
+}
+
+export function isValidBackup(value: unknown): value is PlumeBackup {
+  if (!value || typeof value !== 'object') return false
+  const v = value as Partial<PlumeBackup>
+  return (
+    v.version === 1 &&
+    typeof v.exportedAt === 'string' &&
+    Array.isArray(v.notes) &&
+    Array.isArray(v.folders) &&
+    Array.isArray(v.tags)
+  )
 }
 
 const generateId = () => crypto.randomUUID()
@@ -179,6 +204,39 @@ export const useNoteStore = create<NoteStore>()(
             !n.isArchived &&
             (n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q))
         )
+      },
+
+      replaceData: ({ notes, folders, tags }) => {
+        set({
+          notes,
+          folders,
+          tags,
+          activeNoteId: null,
+          searchQuery: '',
+        })
+      },
+
+      mergeData: ({ notes, folders, tags }) => {
+        set((state) => {
+          const ids = new Set(state.notes.map((n) => n.id))
+          const folderIds = new Set(state.folders.map((f) => f.id))
+          const tagIds = new Set(state.tags.map((t) => t.id))
+          return {
+            notes: [...state.notes, ...notes.filter((n) => !ids.has(n.id))],
+            folders: [...state.folders, ...folders.filter((f) => !folderIds.has(f.id))],
+            tags: [...state.tags, ...tags.filter((t) => !tagIds.has(t.id))],
+          }
+        })
+      },
+
+      resetAll: () => {
+        set({
+          notes: [],
+          folders: defaultFolders,
+          tags: defaultTags,
+          activeNoteId: null,
+          searchQuery: '',
+        })
       },
     }),
     {

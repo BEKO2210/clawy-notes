@@ -1,4 +1,4 @@
-# Clawy Notes - Architecture
+# Plume - Architecture
 
 ## Overview
 A markdown note editor built for speed, beauty, and offline-first reliability.

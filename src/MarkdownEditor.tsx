@@ -1,10 +1,61 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { EditorView, minimalSetup } from 'codemirror'
+import { keymap } from '@codemirror/view'
 import { Compartment, EditorState } from '@codemirror/state'
 import { markdown } from '@codemirror/lang-markdown'
 
+function wrapInView(
+  view: EditorView,
+  prefix: string,
+  suffix: string = prefix,
+  placeholder: string = '',
+): boolean {
+  const { state } = view
+  const { from, to } = state.selection.main
+  const selected = state.sliceDoc(from, to)
+
+  // Toggle: if the entire selection is already wrapped, unwrap it.
+  if (
+    selected.length >= prefix.length + suffix.length &&
+    selected.startsWith(prefix) &&
+    selected.endsWith(suffix)
+  ) {
+    const inner = selected.slice(prefix.length, selected.length - suffix.length)
+    view.dispatch({
+      changes: { from, to, insert: inner },
+      selection: { anchor: from, head: from + inner.length },
+    })
+    return true
+  }
+
+  if (selected.length > 0) {
+    view.dispatch({
+      changes: { from, to, insert: prefix + selected + suffix },
+      selection: {
+        anchor: from + prefix.length,
+        head: from + prefix.length + selected.length,
+      },
+    })
+  } else {
+    const insert = prefix + placeholder + suffix
+    view.dispatch({
+      changes: { from, to, insert },
+      selection:
+        placeholder.length > 0
+          ? {
+              anchor: from + prefix.length,
+              head: from + prefix.length + placeholder.length,
+            }
+          : { anchor: from + prefix.length },
+    })
+  }
+  return true
+}
+
 export interface MarkdownEditorHandle {
   insertAtCursor: (text: string) => void
+  wrapSelection: (prefix: string, suffix?: string, placeholder?: string) => void
+  prefixLine: (prefix: string) => void
   focus: () => void
 }
 
@@ -60,6 +111,36 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
           })
           view.focus()
         },
+
+        wrapSelection(prefix, suffix = prefix, placeholder = '') {
+          const view = viewRef.current
+          if (!view) return
+          wrapInView(view, prefix, suffix, placeholder)
+          view.focus()
+        },
+
+        prefixLine(prefix) {
+          const view = viewRef.current
+          if (!view) return
+          const { state } = view
+          const { from, to } = state.selection.main
+          const startLine = state.doc.lineAt(from)
+          const endLine = state.doc.lineAt(to)
+
+          const changes = []
+          for (let n = startLine.number; n <= endLine.number; n++) {
+            const line = state.doc.line(n)
+            // Skip if already prefixed (toggle off would be nice but keep it
+            // simple: just don't double-add the same prefix).
+            if (line.text.startsWith(prefix)) continue
+            changes.push({ from: line.from, insert: prefix })
+          }
+
+          if (changes.length === 0) return
+          view.dispatch({ changes })
+          view.focus()
+        },
+
         focus() {
           viewRef.current?.focus()
         },
@@ -70,6 +151,12 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     // Mount once
     useEffect(() => {
       if (!containerRef.current) return
+      const markdownKeymap = keymap.of([
+        { key: 'Mod-b', run: (v: EditorView) => wrapInView(v, '**', '**', 'bold') },
+        { key: 'Mod-i', run: (v: EditorView) => wrapInView(v, '*', '*', 'italic') },
+        { key: 'Mod-`', run: (v: EditorView) => wrapInView(v, '`', '`', 'code') },
+      ])
+
       const view = new EditorView({
         state: EditorState.create({
           doc: value,
@@ -78,6 +165,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
             markdown(),
             EditorView.lineWrapping,
             baseTheme,
+            markdownKeymap,
             darkCompartment.current.of(EditorView.theme({}, { dark: darkMode })),
             EditorView.updateListener.of((update) => {
               if (update.docChanged) {
