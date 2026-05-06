@@ -48,7 +48,8 @@ function ToolbarButton({
     <button
       onClick={onClick}
       title={shortcut ? `${title} (${shortcut})` : title}
-      className="p-1.5 rounded hover:bg-[var(--bg-tertiary)] active:scale-95 transition-all duration-150 text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+      aria-label={title}
+      className="p-2 rounded-md hover:bg-[var(--bg-tertiary)] active:scale-95 transition-all duration-150 text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
     >
       {children}
     </button>
@@ -56,12 +57,12 @@ function ToolbarButton({
 }
 
 function ToolbarDivider() {
-  return <span className="mx-1 h-5 w-px bg-[var(--bg-tertiary)]" aria-hidden />
+  return <span className="mx-0.5 h-5 w-px bg-[var(--bg-tertiary)] shrink-0" aria-hidden />
 }
 
 function Toolbar({ onWrap, onPrefix, onLink }: ToolbarProps) {
   return (
-    <div className="flex items-center gap-0.5 px-3 py-2 border-b border-[var(--bg-tertiary)] bg-[var(--bg-secondary)] overflow-x-auto scrollbar-thin">
+    <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 sm:gap-1 sm:px-3 sm:py-2 border-b border-[var(--bg-tertiary)] bg-[var(--bg-secondary)]">
       <ToolbarButton onClick={() => onWrap('**', '**', 'bold')} title="Bold" shortcut="Ctrl+B">
         <Bold className="w-4 h-4" />
       </ToolbarButton>
