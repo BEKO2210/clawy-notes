@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import {
   Plus, Search, Menu, Moon, Sun, Eye, Edit3, Columns2,
   Folder, Tag, Pin, Archive, Trash2, ChevronLeft, FileText,
-  Bold, Italic, Heading, List, CheckSquare
+  Bold, Italic, Heading, List, CheckSquare,
+  Strikethrough, Code, Link as LinkIcon, Quote, ListOrdered
 } from 'lucide-react'
 import { useNoteStore } from './store'
 import { renderMarkdown, extractTitle, formatDate } from './lib'
@@ -25,25 +26,74 @@ function EditorSkeleton() {
   )
 }
 
-// Simple toolbar component
-function Toolbar({ onInsert }: { onInsert: (text: string) => void }) {
+// Editor toolbar — wraps selection or prepends to current line, Obsidian-style.
+interface ToolbarProps {
+  onWrap: (prefix: string, suffix?: string, placeholder?: string) => void
+  onPrefix: (prefix: string) => void
+  onLink: () => void
+}
+
+function ToolbarButton({
+  onClick,
+  title,
+  shortcut,
+  children,
+}: {
+  onClick: () => void
+  title: string
+  shortcut?: string
+  children: React.ReactNode
+}) {
   return (
-    <div className="flex items-center gap-1 px-3 py-2 border-b border-[var(--bg-tertiary)] bg-[var(--bg-secondary)]">
-      <button onClick={() => onInsert('**bold**')} className="p-1.5 rounded hover:bg-[var(--bg-tertiary)] transition-colors" title="Bold">
-        <Bold className="w-4 h-4 text-[var(--text-secondary)]" />
-      </button>
-      <button onClick={() => onInsert('*italic*')} className="p-1.5 rounded hover:bg-[var(--bg-tertiary)] transition-colors" title="Italic">
-        <Italic className="w-4 h-4 text-[var(--text-secondary)]" />
-      </button>
-      <button onClick={() => onInsert('\n# ')} className="p-1.5 rounded hover:bg-[var(--bg-tertiary)] transition-colors" title="Heading">
-        <Heading className="w-4 h-4 text-[var(--text-secondary)]" />
-      </button>
-      <button onClick={() => onInsert('\n- ')} className="p-1.5 rounded hover:bg-[var(--bg-tertiary)] transition-colors" title="List">
-        <List className="w-4 h-4 text-[var(--text-secondary)]" />
-      </button>
-      <button onClick={() => onInsert('\n- [ ] ')} className="p-1.5 rounded hover:bg-[var(--bg-tertiary)] transition-colors" title="Checkbox">
-        <CheckSquare className="w-4 h-4 text-[var(--text-secondary)]" />
-      </button>
+    <button
+      onClick={onClick}
+      title={shortcut ? `${title} (${shortcut})` : title}
+      className="p-1.5 rounded hover:bg-[var(--bg-tertiary)] active:scale-95 transition-all duration-150 text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+    >
+      {children}
+    </button>
+  )
+}
+
+function ToolbarDivider() {
+  return <span className="mx-1 h-5 w-px bg-[var(--bg-tertiary)]" aria-hidden />
+}
+
+function Toolbar({ onWrap, onPrefix, onLink }: ToolbarProps) {
+  return (
+    <div className="flex items-center gap-0.5 px-3 py-2 border-b border-[var(--bg-tertiary)] bg-[var(--bg-secondary)] overflow-x-auto scrollbar-thin">
+      <ToolbarButton onClick={() => onWrap('**', '**', 'bold')} title="Bold" shortcut="Ctrl+B">
+        <Bold className="w-4 h-4" />
+      </ToolbarButton>
+      <ToolbarButton onClick={() => onWrap('*', '*', 'italic')} title="Italic" shortcut="Ctrl+I">
+        <Italic className="w-4 h-4" />
+      </ToolbarButton>
+      <ToolbarButton onClick={() => onWrap('~~', '~~', 'strike')} title="Strikethrough">
+        <Strikethrough className="w-4 h-4" />
+      </ToolbarButton>
+      <ToolbarButton onClick={() => onWrap('`', '`', 'code')} title="Inline code" shortcut="Ctrl+`">
+        <Code className="w-4 h-4" />
+      </ToolbarButton>
+      <ToolbarDivider />
+      <ToolbarButton onClick={() => onPrefix('# ')} title="Heading">
+        <Heading className="w-4 h-4" />
+      </ToolbarButton>
+      <ToolbarButton onClick={() => onPrefix('> ')} title="Quote">
+        <Quote className="w-4 h-4" />
+      </ToolbarButton>
+      <ToolbarButton onClick={() => onPrefix('- ')} title="Bulleted list">
+        <List className="w-4 h-4" />
+      </ToolbarButton>
+      <ToolbarButton onClick={() => onPrefix('1. ')} title="Numbered list">
+        <ListOrdered className="w-4 h-4" />
+      </ToolbarButton>
+      <ToolbarButton onClick={() => onPrefix('- [ ] ')} title="Checkbox">
+        <CheckSquare className="w-4 h-4" />
+      </ToolbarButton>
+      <ToolbarDivider />
+      <ToolbarButton onClick={onLink} title="Link">
+        <LinkIcon className="w-4 h-4" />
+      </ToolbarButton>
     </div>
   )
 }
@@ -329,8 +379,17 @@ function Editor() {
     updateNote(note.id, { content: newContent, title })
   }, [note, updateNote])
 
-  const handleInsert = (text: string) => {
-    editorRef.current?.insertAtCursor(text)
+  const handleWrap = (prefix: string, suffix?: string, placeholder?: string) => {
+    editorRef.current?.wrapSelection(prefix, suffix, placeholder)
+  }
+
+  const handlePrefix = (prefix: string) => {
+    editorRef.current?.prefixLine(prefix)
+  }
+
+  const handleLink = () => {
+    // [text](url) — wrap selection as the link text, leave cursor on url placeholder.
+    editorRef.current?.wrapSelection('[', '](url)', 'link')
   }
 
   const handleDelete = () => {
@@ -416,7 +475,9 @@ function Editor() {
       </div>
 
       {/* Toolbar */}
-      {viewMode !== 'preview' && <Toolbar onInsert={handleInsert} />}
+      {viewMode !== 'preview' && (
+        <Toolbar onWrap={handleWrap} onPrefix={handlePrefix} onLink={handleLink} />
+      )}
 
       {/* Editor / Preview */}
       <div className="flex-1 flex overflow-hidden">
