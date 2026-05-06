@@ -4,6 +4,27 @@ import { keymap } from '@codemirror/view'
 import { Compartment, EditorState } from '@codemirror/state'
 import { markdown } from '@codemirror/lang-markdown'
 
+function setHeadingLevel(view: EditorView, level: number): boolean {
+  const { state } = view
+  const { from, to } = state.selection.main
+  const startLine = state.doc.lineAt(from)
+  const endLine = state.doc.lineAt(to)
+  const changes: { from: number; to: number; insert: string }[] = []
+
+  for (let n = startLine.number; n <= endLine.number; n++) {
+    const line = state.doc.line(n)
+    // Strip any existing leading hashes + space, then prefix the new level.
+    const stripped = line.text.replace(/^#+\s+/, '')
+    const next = level === 0 ? stripped : '#'.repeat(level) + ' ' + stripped
+    if (next === line.text) continue
+    changes.push({ from: line.from, to: line.to, insert: next })
+  }
+
+  if (changes.length === 0) return true
+  view.dispatch({ changes })
+  return true
+}
+
 function wrapInView(
   view: EditorView,
   prefix: string,
@@ -155,6 +176,15 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         { key: 'Mod-b', run: (v: EditorView) => wrapInView(v, '**', '**', 'bold') },
         { key: 'Mod-i', run: (v: EditorView) => wrapInView(v, '*', '*', 'italic') },
         { key: 'Mod-`', run: (v: EditorView) => wrapInView(v, '`', '`', 'code') },
+        { key: 'Mod-Shift-x', run: (v: EditorView) => wrapInView(v, '~~', '~~', 'strike') },
+        { key: 'Mod-Shift-h', run: (v: EditorView) => wrapInView(v, '==', '==', 'highlight') },
+        { key: 'Mod-1', run: (v) => setHeadingLevel(v, 1) },
+        { key: 'Mod-2', run: (v) => setHeadingLevel(v, 2) },
+        { key: 'Mod-3', run: (v) => setHeadingLevel(v, 3) },
+        { key: 'Mod-4', run: (v) => setHeadingLevel(v, 4) },
+        { key: 'Mod-5', run: (v) => setHeadingLevel(v, 5) },
+        { key: 'Mod-6', run: (v) => setHeadingLevel(v, 6) },
+        { key: 'Mod-0', run: (v) => setHeadingLevel(v, 0) },
       ])
 
       const view = new EditorView({
