@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react'
 import type { Note } from './types'
 import {
   Plus, Search, Menu, Moon, Sun, Eye, Edit3, Columns2,
-  Folder, Tag, Pin, Archive, Trash2, ChevronLeft, FileText,
+  Folder, Tag, Pin, Archive, Trash2, ChevronLeft,
   Bold, Italic, Heading, List, CheckSquare,
   Strikethrough, Code, Link as LinkIcon, Quote, ListOrdered,
   Table as TableIcon, Image as ImageIcon, Minus, Code2, X, Check,
@@ -33,6 +33,7 @@ import {
   toggleTaskInContent,
 } from './lib'
 import { FolderTree } from './FolderTree'
+import { HomeDashboard } from './HomeDashboard'
 import type { MarkdownEditorHandle } from './MarkdownEditor'
 import './App.css'
 
@@ -732,7 +733,24 @@ function PreviewPane({ note }: { note: Note }) {
 
 // Main Editor Component
 function Editor() {
-  const { getActiveNote, updateNote, viewMode, setViewMode, deleteNote, pinNote, archiveNote, darkMode, sidebarOpen, tags, folders, rightSidebarOpen, setRightSidebarOpen } = useNoteStore()
+  const {
+    getActiveNote,
+    updateNote,
+    viewMode,
+    setViewMode,
+    deleteNote,
+    pinNote,
+    archiveNote,
+    darkMode,
+    sidebarOpen,
+    tags,
+    folders,
+    notes,
+    addNote,
+    setActiveNote,
+    rightSidebarOpen,
+    setRightSidebarOpen,
+  } = useNoteStore()
   const note = getActiveNote()
   const editorRef = useRef<MarkdownEditorHandle>(null)
   const content = note?.content ?? ''
@@ -809,13 +827,14 @@ function Editor() {
 
   if (!note) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[var(--bg-primary)]">
-        <div className="text-center">
-          <FileText className="w-12 h-12 text-[var(--text-tertiary)] mx-auto mb-3" />
-          <p className="text-lg font-medium text-[var(--text-secondary)]">Select a note or create one</p>
-          <p className="text-sm text-[var(--text-tertiary)] mt-1">Your markdown notes will appear here</p>
-        </div>
-      </div>
+      <HomeDashboard
+        notes={notes}
+        folders={folders}
+        tags={tags}
+        sidebarOpen={sidebarOpen}
+        onPick={setActiveNote}
+        onNew={() => addNote({ title: 'New Note', content: '# New Note\n\nStart writing...' })}
+      />
     )
   }
 

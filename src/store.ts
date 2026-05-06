@@ -139,6 +139,13 @@ export interface PlumeAINote {
   inbound: string[]
   /** First 280 chars of stripped content for snippet/summary use. */
   snippet: string
+  /** Total resolved wikilinks touching this note (in + out). Lets the
+   *  consumer rank "important" hub notes without re-walking the graph. */
+  degree: number
+  /** Heuristic importance score (degree × 2 + log10(1 + tokens/200)).
+   *  Same formula the GraphView uses for sphere sizing, exposed so
+   *  agents can pick highly-connected notes first. */
+  importance: number
 }
 
 export interface PlumeAIExport {
@@ -206,6 +213,12 @@ export function buildAIExport(
 
   const aiNotes: PlumeAINote[] = state.notes.map((n) => {
     const outboundRaw = extractWikilinks(n.content)
+    const outbound = Array.from(new Set(outboundRaw))
+    const inbound = inboundMap.get(n.id) ?? []
+    const approxTokens = Math.max(1, Math.round(n.content.length / 4))
+    const degree = outbound.length + inbound.length
+    const importance =
+      degree * 2 + Math.log10(1 + n.content.length / 200)
     return {
       id: n.id,
       title: n.title,
@@ -218,10 +231,12 @@ export function buildAIExport(
       isPinned: n.isPinned,
       isArchived: n.isArchived,
       content: n.content,
-      approxTokens: Math.max(1, Math.round(n.content.length / 4)),
-      outbound: Array.from(new Set(outboundRaw)),
-      inbound: inboundMap.get(n.id) ?? [],
+      approxTokens,
+      outbound,
+      inbound,
       snippet: stripForSnippet(n.content).slice(0, 280),
+      degree,
+      importance: Number(importance.toFixed(3)),
     }
   })
 
