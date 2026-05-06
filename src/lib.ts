@@ -291,6 +291,15 @@ export function renderMarkdown(content: string, options: RenderOptions = {}): st
   const rawHtml = marked.parse(content) as string
   return DOMPurify.sanitize(rawHtml, {
     ADD_ATTR: ['data-task-idx', 'data-wikilink', 'data-copy', 'data-lang'],
+    // Defense in depth — explicit deny list on top of DOMPurify's defaults
+    // so the same protection applies regardless of the underlying DOM
+    // implementation (browser, jsdom, happy-dom).
+    FORBID_TAGS: ['style', 'iframe', 'object', 'embed', 'form', 'meta', 'link', 'base'],
+    FORBID_ATTR: [
+      'onerror', 'onclick', 'onload', 'onmouseover', 'onmouseout',
+      'onfocus', 'onblur', 'onkeydown', 'onkeyup', 'onsubmit', 'onchange',
+      'srcset', 'formaction',
+    ],
   })
 }
 
