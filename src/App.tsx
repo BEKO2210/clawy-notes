@@ -7,7 +7,7 @@ import {
   Strikethrough, Code, Link as LinkIcon, Quote, ListOrdered,
   Table as TableIcon, Image as ImageIcon, Minus, Code2, X, Check,
   Settings as SettingsIcon, Highlighter, ChevronUp, ChevronDown,
-  PanelRight
+  ChevronRight, PanelRight
 } from 'lucide-react'
 import { SettingsModal } from './SettingsModal'
 import { AuditPage } from './AuditPage'
@@ -171,6 +171,32 @@ function Sidebar() {
   const [newTagName, setNewTagName] = useState('')
   const [newTagColor, setNewTagColor] = useState<string>(TAG_PALETTE[0])
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // Per-section collapse state for the sidebar — lets people on small
+  // screens hide Folders / Tags so the notes list takes the full height.
+  const [collapsedSections, setCollapsedSections] = useState<{ folders: boolean; tags: boolean }>(
+    () => {
+      if (typeof localStorage === 'undefined') return { folders: false, tags: false }
+      try {
+        const raw = localStorage.getItem('plume-sidebar-sections')
+        if (raw) {
+          const parsed = JSON.parse(raw) as Partial<{ folders: boolean; tags: boolean }>
+          return { folders: !!parsed.folders, tags: !!parsed.tags }
+        }
+      } catch {
+        // ignore
+      }
+      return { folders: false, tags: false }
+    },
+  )
+  useEffect(() => {
+    try {
+      localStorage.setItem('plume-sidebar-sections', JSON.stringify(collapsedSections))
+    } catch {
+      // ignore
+    }
+  }, [collapsedSections])
+  const toggleSection = (key: 'folders' | 'tags') =>
+    setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }))
   const searchRef = useRef<HTMLInputElement>(null)
 
   const folderTree = useMemo(() => buildFolderTree(folders), [folders])
@@ -343,12 +369,32 @@ function Sidebar() {
       {/* Folders */}
       <div className="px-3 py-2">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Folders</h3>
-          <button onClick={() => setShowNewFolder(!showNewFolder)} className="p-1 rounded hover:bg-[var(--bg-tertiary)]">
+          <button
+            type="button"
+            onClick={() => toggleSection('folders')}
+            aria-expanded={!collapsedSections.folders}
+            className="flex-1 flex items-center gap-1 text-left text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+          >
+            {collapsedSections.folders ? (
+              <ChevronRight className="w-3 h-3" />
+            ) : (
+              <ChevronDown className="w-3 h-3" />
+            )}
+            <h3 className="text-xs font-semibold uppercase tracking-wide">Folders</h3>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (collapsedSections.folders) toggleSection('folders')
+              setShowNewFolder(!showNewFolder)
+            }}
+            className="p-1 rounded hover:bg-[var(--bg-tertiary)]"
+            aria-label="Add folder"
+          >
             <Plus className="w-3 h-3 text-[var(--text-tertiary)]" />
           </button>
         </div>
-        {showNewFolder && (
+        {!collapsedSections.folders && showNewFolder && (
           <form onSubmit={handleNewFolder} className="mb-2 space-y-1.5">
             <input
               type="text"
@@ -375,55 +421,72 @@ function Sidebar() {
             )}
           </form>
         )}
-        <div className="space-y-1">
-          <button
-            onClick={() => setActiveFolder(null)}
-            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors ${
-              activeFolder === null ? 'bg-[var(--accent)]/10 text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
-            }`}
-          >
-            <Folder className="w-4 h-4" />
-            <span>All Notes</span>
-            <span className="ml-auto text-xs text-[var(--text-tertiary)]">{notes.filter(n => !n.isArchived).length}</span>
-          </button>
-          <FolderTree
-            tree={folderTree}
-            activeFolder={activeFolder}
-            collapsed={collapsedFolders}
-            counts={folderNoteCounts}
-            onPick={setActiveFolder}
-            onToggle={toggleFolderCollapsed}
-          />
-          {archivedCount > 0 && (
+        {!collapsedSections.folders && (
+          <div className="space-y-1">
             <button
-              onClick={() => setActiveFolder('__archive__')}
+              onClick={() => setActiveFolder(null)}
               className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors ${
-                activeFolder === '__archive__'
-                  ? 'bg-[var(--accent)]/10 text-[var(--accent)]'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+                activeFolder === null ? 'bg-[var(--accent)]/10 text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
               }`}
             >
-              <Archive className="w-4 h-4" />
-              <span>Archive</span>
-              <span className="ml-auto text-xs text-[var(--text-tertiary)]">{archivedCount}</span>
+              <Folder className="w-4 h-4" />
+              <span>All Notes</span>
+              <span className="ml-auto text-xs text-[var(--text-tertiary)]">{notes.filter(n => !n.isArchived).length}</span>
             </button>
-          )}
-        </div>
+            <FolderTree
+              tree={folderTree}
+              activeFolder={activeFolder}
+              collapsed={collapsedFolders}
+              counts={folderNoteCounts}
+              onPick={setActiveFolder}
+              onToggle={toggleFolderCollapsed}
+            />
+            {archivedCount > 0 && (
+              <button
+                onClick={() => setActiveFolder('__archive__')}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors ${
+                  activeFolder === '__archive__'
+                    ? 'bg-[var(--accent)]/10 text-[var(--accent)]'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+                }`}
+              >
+                <Archive className="w-4 h-4" />
+                <span>Archive</span>
+                <span className="ml-auto text-xs text-[var(--text-tertiary)]">{archivedCount}</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Tags */}
       <div className="px-3 py-2">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Tags</h3>
           <button
-            onClick={() => setShowNewTag(v => !v)}
+            type="button"
+            onClick={() => toggleSection('tags')}
+            aria-expanded={!collapsedSections.tags}
+            className="flex-1 flex items-center gap-1 text-left text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+          >
+            {collapsedSections.tags ? (
+              <ChevronRight className="w-3 h-3" />
+            ) : (
+              <ChevronDown className="w-3 h-3" />
+            )}
+            <h3 className="text-xs font-semibold uppercase tracking-wide">Tags</h3>
+          </button>
+          <button
+            onClick={() => {
+              if (collapsedSections.tags) toggleSection('tags')
+              setShowNewTag(v => !v)
+            }}
             className="p-1 rounded hover:bg-[var(--bg-tertiary)] transition-colors"
             aria-label="Add tag"
           >
             <Plus className="w-3 h-3 text-[var(--text-tertiary)]" />
           </button>
         </div>
-        {showNewTag && (
+        {!collapsedSections.tags && showNewTag && (
           <form onSubmit={handleNewTag} className="mb-2 space-y-1.5">
             <input
               type="text"
@@ -447,29 +510,30 @@ function Sidebar() {
             </div>
           </form>
         )}
-        {tags.length === 0 ? (
-          <p className="text-xs text-[var(--text-tertiary)]">No tags yet.</p>
-        ) : (
-          <div className="flex flex-wrap gap-1">
-            {tags.map(tag => (
-              <span
-                key={tag.id}
-                className="group inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium"
-                style={{ backgroundColor: tag.color + '22', color: tag.color }}
-              >
-                <Tag className="w-3 h-3" />
-                {tag.name}
-                <button
-                  onClick={() => deleteTag(tag.id)}
-                  aria-label={`Delete tag ${tag.name}`}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-black/10 p-0.5 leading-none"
+        {!collapsedSections.tags &&
+          (tags.length === 0 ? (
+            <p className="text-xs text-[var(--text-tertiary)]">No tags yet.</p>
+          ) : (
+            <div className="flex flex-wrap gap-1">
+              {tags.map(tag => (
+                <span
+                  key={tag.id}
+                  className="group inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium"
+                  style={{ backgroundColor: tag.color + '22', color: tag.color }}
                 >
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
+                  <Tag className="w-3 h-3" />
+                  {tag.name}
+                  <button
+                    onClick={() => deleteTag(tag.id)}
+                    aria-label={`Delete tag ${tag.name}`}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-black/10 p-0.5 leading-none"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          ))}
       </div>
 
       {/* Note List */}
