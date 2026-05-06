@@ -198,6 +198,10 @@ function Sidebar() {
   const toggleSection = (key: 'folders' | 'tags') =>
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }))
   const searchRef = useRef<HTMLInputElement>(null)
+  // Sidebar content scroll container — used to surface a fade + chevron
+  // when there's more content below the fold.
+  const sidebarScrollRef = useRef<HTMLDivElement>(null)
+  const [moreBelow, setMoreBelow] = useState(false)
 
   const folderTree = useMemo(() => buildFolderTree(folders), [folders])
   const flatFolders = useMemo(() => flattenFolderTree(folderTree), [folderTree])
@@ -249,6 +253,33 @@ function Sidebar() {
     : getPinnedNotes().length > 0
     ? [...getPinnedNotes(), ...notes.filter(n => !n.isPinned && !n.isArchived)]
     : notes.filter(n => !n.isArchived)
+
+  // Update the "more below" hint whenever the scroll container or its
+  // content can have changed: section collapse, folder/tag/notes counts,
+  // sidebar visibility on mobile, the active filter.
+  useEffect(() => {
+    const el = sidebarScrollRef.current
+    if (!el) return
+    const update = () => {
+      const remaining = el.scrollHeight - el.scrollTop - el.clientHeight
+      setMoreBelow(remaining > 8 && el.scrollHeight > el.clientHeight + 4)
+    }
+    update()
+    el.addEventListener('scroll', update, { passive: true })
+    const obs = new ResizeObserver(update)
+    obs.observe(el)
+    return () => {
+      el.removeEventListener('scroll', update)
+      obs.disconnect()
+    }
+  }, [
+    collapsedSections,
+    folders.length,
+    tags.length,
+    displayedNotes.length,
+    sidebarOpen,
+    activeFolder,
+  ])
 
   const closeOnMobile = () => {
     if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
@@ -366,6 +397,14 @@ function Sidebar() {
         </div>
       </div>
 
+      {/* Scrollable content: Folders + Tags + Notes share one scroll
+          container so on a phone the user can drag the whole sidebar
+          rather than fighting nested scroll regions. */}
+      <div className="relative flex-1 min-h-0">
+        <div
+          ref={sidebarScrollRef}
+          className="absolute inset-0 overflow-y-auto scrollbar-thin"
+        >
       {/* Folders */}
       <div className="px-3 py-2">
         <div className="flex items-center justify-between mb-2">
@@ -578,7 +617,7 @@ function Sidebar() {
       </div>
 
       {/* Note List */}
-      <div className="flex-1 overflow-y-auto px-3 py-2 scrollbar-thin">
+      <div className="px-3 py-2">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)] mb-2">
           {searchQuery
             ? 'Search Results'
@@ -638,6 +677,17 @@ function Sidebar() {
             <p className="text-sm text-[var(--text-tertiary)] text-center py-4">No notes found</p>
           )}
         </div>
+      </div>
+
+        </div>
+        {moreBelow && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute bottom-0 inset-x-0 h-12 bg-gradient-to-t from-[var(--bg-secondary)] to-transparent flex items-end justify-center pb-1.5"
+          >
+            <ChevronDown className="w-4 h-4 text-[var(--text-tertiary)] animate-bounce" />
+          </div>
+        )}
       </div>
 
       {/* Footer: settings */}
