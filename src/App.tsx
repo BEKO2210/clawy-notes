@@ -140,8 +140,12 @@ function Sidebar() {
     return () => window.removeEventListener('clawy:focus-search', focus)
   }, [])
 
+  const archivedCount = notes.filter(n => n.isArchived).length
+
   const displayedNotes = searchQuery
     ? searchNotes(searchQuery)
+    : activeFolder === '__archive__'
+    ? notes.filter(n => n.isArchived)
     : activeFolder
     ? getNotesByFolder(activeFolder)
     : getPinnedNotes().length > 0
@@ -300,6 +304,20 @@ function Sidebar() {
               </span>
             </button>
           ))}
+          {archivedCount > 0 && (
+            <button
+              onClick={() => setActiveFolder('__archive__')}
+              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors ${
+                activeFolder === '__archive__'
+                  ? 'bg-[var(--accent)]/10 text-[var(--accent)]'
+                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+              }`}
+            >
+              <Archive className="w-4 h-4" />
+              <span>Archive</span>
+              <span className="ml-auto text-xs text-[var(--text-tertiary)]">{archivedCount}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -323,7 +341,13 @@ function Sidebar() {
       {/* Note List */}
       <div className="flex-1 overflow-y-auto px-3 py-2 scrollbar-thin">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)] mb-2">
-          {searchQuery ? 'Search Results' : activeFolder ? 'Notes' : 'Recent'}
+          {searchQuery
+            ? 'Search Results'
+            : activeFolder === '__archive__'
+            ? 'Archive'
+            : activeFolder
+            ? 'Notes'
+            : 'Recent'}
         </h3>
         <div className="space-y-1">
           {displayedNotes.map(note => (
@@ -467,8 +491,12 @@ function Editor() {
           <button onClick={() => pinNote(note.id)} className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors" title="Pin">
             <Pin className={`w-4 h-4 ${note.isPinned ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)]'}`} />
           </button>
-          <button onClick={() => archiveNote(note.id)} className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors" title="Archive">
-            <Archive className="w-4 h-4 text-[var(--text-tertiary)]" />
+          <button
+            onClick={() => archiveNote(note.id)}
+            className={`p-2 rounded-lg transition-colors ${note.isArchived ? 'bg-[var(--accent)]/10' : 'hover:bg-[var(--bg-tertiary)]'}`}
+            title={note.isArchived ? 'Unarchive' : 'Archive'}
+          >
+            <Archive className={`w-4 h-4 ${note.isArchived ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)]'}`} />
           </button>
           {confirmingDelete ? (
             <button
