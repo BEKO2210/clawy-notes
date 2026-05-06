@@ -1,0 +1,48 @@
+<svg width="220" height="48" viewBox="0 0 220 48" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Plume Notes">
+  <defs>
+    <linearGradient id="wm-bg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#38BDF8"/>
+      <stop offset="0.55" stop-color="#0EA5E9"/>
+      <stop offset="1" stop-color="#0C4A6E"/>
+    </linearGradient>
+    <linearGradient id="wm-fg" x1="0" y1="0" x2="0" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E0F2FE"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="48" height="48" rx="11" fill="url(#wm-bg)"/>
+  <rect x="0.5" y="0.5" width="47" height="47" rx="10.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.14"/>
+  <path
+    transform="scale(0.75) translate(0, 0)"
+    d="M 18.5 14
+       L 18.5 49.5
+       Q 18.5 53, 22 53
+       Q 25.5 53, 25.5 49.5
+       L 25.5 36.5
+       L 33 36.5
+       Q 47 36.5, 47 25.25
+       Q 47 14, 33 14
+       Z
+       M 25.5 20.5
+       L 33 20.5
+       Q 39.5 20.5, 39.5 25.25
+       Q 39.5 30, 33 30
+       L 25.5 30
+       Z"
+    fill="url(#wm-fg)"
+    fill-rule="evenodd"
+  />
+  <path
+    transform="scale(0.75) translate(0, 0)"
+    d="M 22 53 Q 14 53, 12 47"
+    stroke="url(#wm-fg)"
+    stroke-width="2.4"
+    stroke-linecap="round"
+    fill="none"
+    opacity="0.85"
+  />
+  <circle cx="8.6" cy="34.5" r="1.4" fill="#FACC15"/>
+  <text x="60" y="32" font-family="'Space Grotesk', system-ui, sans-serif" font-weight="700" font-size="22" letter-spacing="-0.5" fill="currentColor">
+    Plume <tspan font-weight="500" fill-opacity="0.7">Notes</tspan>
+  </text>
+</svg>

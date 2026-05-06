@@ -12,12 +12,6 @@
   </defs>
   <rect width="64" height="64" rx="14" fill="url(#plume-bg)"/>
   <rect x="0.5" y="0.5" width="63" height="63" rx="13.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.14"/>
-
-  <!--
-    Plume mark: a stylized lowercase "p" whose descender curls into a
-    feather quill. Built from one continuous outline so it stays sharp
-    at any size.
-  -->
   <path
     d="M 18.5 14
        L 18.5 49.5
@@ -37,8 +31,6 @@
     fill="url(#plume-fg)"
     fill-rule="evenodd"
   />
-
-  <!-- Subtle quill flourish under the descender -->
   <path
     d="M 22 53
        Q 14 53, 12 47"
@@ -48,7 +40,5 @@
     fill="none"
     opacity="0.85"
   />
-
-  <!-- Cursor accent: small ink dot floating off the flourish -->
   <circle cx="11.5" cy="46" r="1.8" fill="#FACC15"/>
 </svg>

@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/clawy-notes/sw.js', { scope: '/clawy-notes/' })})}
