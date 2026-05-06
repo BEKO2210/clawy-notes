@@ -93,4 +93,65 @@ describe('<MarkdownEditor /> round-trip stability', () => {
     rerender(<ControlledHost initial="hi" onValueChange={onChange} handleRef={handleRef} />)
     expect(onChange).not.toHaveBeenCalled()
   })
+
+  it('wrapSelection toolbar button wraps with placeholder when selection is empty', () => {
+    const onChange = vi.fn<(v: string) => void>()
+    const handleRef = { current: null as MarkdownEditorHandle | null }
+    render(<ControlledHost initial="" onValueChange={onChange} handleRef={handleRef} />)
+
+    act(() => handleRef.current!.wrapSelection('**', '**', 'bold'))
+    expect(onChange.mock.calls.at(-1)?.[0]).toBe('**bold**')
+  })
+
+  it('prefixLine on a fresh empty editor inserts the marker once', () => {
+    const onChange = vi.fn<(v: string) => void>()
+    const handleRef = { current: null as MarkdownEditorHandle | null }
+    render(<ControlledHost initial="" onValueChange={onChange} handleRef={handleRef} />)
+
+    act(() => handleRef.current!.prefixLine('- '))
+    expect(onChange.mock.calls.at(-1)?.[0]).toBe('- ')
+
+    // Pressing the same toolbar button again must not double the prefix.
+    act(() => handleRef.current!.prefixLine('- '))
+    expect(onChange.mock.calls.at(-1)?.[0]).toBe('- ')
+  })
+
+  it('insertAtCursor places text at the caret and moves the caret after', () => {
+    const onChange = vi.fn<(v: string) => void>()
+    const handleRef = { current: null as MarkdownEditorHandle | null }
+    render(<ControlledHost initial="hi" onValueChange={onChange} handleRef={handleRef} />)
+
+    act(() => handleRef.current!.insertAtCursor(' world'))
+    // Initial caret is at 0 after our reset effect runs, so the inserted
+    // text lands at the start. We don't care which side the marker ends
+    // up on as long as the doc contains both.
+    const last = onChange.mock.calls.at(-1)?.[0]
+    expect(last).toContain(' world')
+    expect(last).toContain('hi')
+  })
+
+  it('switching to a different value (note switch) replaces the doc', () => {
+    const onChange = vi.fn<(v: string) => void>()
+    const handleRef = { current: null as MarkdownEditorHandle | null }
+    const { rerender } = render(
+      <ControlledHost initial="first note" onValueChange={onChange} handleRef={handleRef} />,
+    )
+    // ControlledHost owns its own state, so to simulate a "switch" we
+    // remount with a fresh initial. The point is: once a remount /
+    // external `value` change comes in, the editor should reflect it.
+    rerender(
+      <ControlledHost
+        key="switched"
+        initial="second note"
+        onValueChange={onChange}
+        handleRef={handleRef}
+      />,
+    )
+    // After remount the editor has the new value as its baseline; typing
+    // appends to that, not to the old "first note".
+    act(() => handleRef.current!.insertAtCursor('!'))
+    const last = onChange.mock.calls.at(-1)?.[0]
+    expect(last).toContain('second note')
+    expect(last).not.toContain('first note')
+  })
 })

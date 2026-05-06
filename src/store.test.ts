@@ -96,6 +96,69 @@ describe('useNoteStore', () => {
     })
   })
 
+  describe('addFolder / deleteFolder', () => {
+    it('adds a top-level folder and a sub-folder', () => {
+      useNoteStore.getState().addFolder('Projects')
+      const projects = useNoteStore.getState().folders.find((f) => f.name === 'Projects')!
+      expect(projects.parentId).toBeNull()
+
+      useNoteStore.getState().addFolder('Plume', projects.id, '#22c55e')
+      const plume = useNoteStore.getState().folders.find((f) => f.name === 'Plume')!
+      expect(plume.parentId).toBe(projects.id)
+      expect(plume.color).toBe('#22c55e')
+    })
+
+    it('reassigns a deleted folder\'s notes to inbox', () => {
+      useNoteStore.getState().addFolder('Doomed')
+      const doomed = useNoteStore.getState().folders.find((f) => f.name === 'Doomed')!
+      const noteId = useNoteStore.getState().addNote({ folderId: doomed.id, title: 'inside' })
+
+      useNoteStore.getState().deleteFolder(doomed.id)
+      const state = useNoteStore.getState()
+      expect(state.folders.find((f) => f.id === doomed.id)).toBeUndefined()
+      expect(state.notes.find((n) => n.id === noteId)?.folderId).toBe('inbox')
+    })
+
+    it('getNotesByFolder filters by id and skips archived notes', () => {
+      useNoteStore.getState().addFolder('Recipes')
+      const recipes = useNoteStore.getState().folders.find((f) => f.name === 'Recipes')!
+      useNoteStore.getState().addNote({ title: 'Pasta', folderId: recipes.id })
+      const archivedId = useNoteStore.getState().addNote({ title: 'Old', folderId: recipes.id })
+      useNoteStore.getState().archiveNote(archivedId)
+
+      const live = useNoteStore.getState().getNotesByFolder(recipes.id)
+      expect(live.map((n) => n.title)).toEqual(['Pasta'])
+    })
+  })
+
+  describe('search/tag getters survive corrupted notes', () => {
+    it('searchNotes treats missing title/content as empty without throwing', () => {
+      const id = useNoteStore.getState().addNote({ title: 'only title', content: 'only content' })
+      // Hand-corrupt the note (mimics a malformed import) — title and
+      // content fields go away. The getter must not throw.
+      useNoteStore.setState((s) => ({
+        notes: s.notes.map((n) =>
+          n.id === id
+            ? ({ ...n, title: undefined, content: undefined } as unknown as typeof n)
+            : n,
+        ),
+      }))
+      expect(() => useNoteStore.getState().searchNotes('anything')).not.toThrow()
+    })
+
+    it('getNotesByTag treats missing tags as empty without throwing', () => {
+      useNoteStore.getState().addTag('Idea', '#22c55e')
+      const tag = useNoteStore.getState().tags.find((t) => t.name === 'Idea')!
+      const id = useNoteStore.getState().addNote({ tags: [tag.id] })
+      useNoteStore.setState((s) => ({
+        notes: s.notes.map((n) =>
+          n.id === id ? ({ ...n, tags: undefined } as unknown as typeof n) : n,
+        ),
+      }))
+      expect(() => useNoteStore.getState().getNotesByTag(tag.id)).not.toThrow()
+    })
+  })
+
   describe('addTag / deleteTag', () => {
     it('adds a tag and removes it from notes when deleted', () => {
       useNoteStore.getState().addTag('Project', '#0ea5e9')
