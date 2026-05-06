@@ -42,6 +42,18 @@ interface CalloutToken extends Tokens.Generic {
   collapsed: boolean
 }
 
+interface MathInlineToken extends Tokens.Generic {
+  type: 'mathInline'
+  raw: string
+  tex: string
+}
+
+interface MathBlockToken extends Tokens.Generic {
+  type: 'mathBlock'
+  raw: string
+  tex: string
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function escapeHtml(s: string): string {
@@ -122,6 +134,45 @@ const subscript: MarkedExtension['extensions'] = [
     renderer(token) {
       const t = token as SubscriptToken
       return `<sub>${escapeHtml(t.text)}</sub>`
+    },
+  },
+]
+
+const mathInline: MarkedExtension['extensions'] = [
+  {
+    name: 'mathInline',
+    level: 'inline',
+    start(src: string) {
+      return src.indexOf('$')
+    },
+    tokenizer(src: string): MathInlineToken | undefined {
+      // $...$ — no leading/trailing space inside, no newline, not $$
+      const match = /^\$(?!\$)([^\s$][^$\n]*?[^\s$]|[^\s$])\$(?!\$)/.exec(src)
+      if (!match) return
+      return { type: 'mathInline', raw: match[0], tex: match[1] }
+    },
+    renderer(token) {
+      const t = token as MathInlineToken
+      return `<span class="plume-katex-inline" data-katex="inline">${escapeHtml(t.tex)}</span>`
+    },
+  },
+]
+
+const mathBlock: MarkedExtension['extensions'] = [
+  {
+    name: 'mathBlock',
+    level: 'block',
+    start(src: string) {
+      return src.indexOf('$$')
+    },
+    tokenizer(src: string): MathBlockToken | undefined {
+      const match = /^\$\$([\s\S]+?)\$\$/.exec(src)
+      if (!match) return
+      return { type: 'mathBlock', raw: match[0], tex: match[1].trim() }
+    },
+    renderer(token) {
+      const t = token as MathBlockToken
+      return `<div class="plume-katex-block" data-katex="block">${escapeHtml(t.tex)}</div>`
     },
   },
 ]
@@ -246,9 +297,13 @@ const frontmatter: MarkedExtension['extensions'] = [
 // ─── Renderer overrides ──────────────────────────────────────────────────────
 
 const renderer = {
-  // Wrap fenced code blocks with a copy button + language label.
+  // Wrap fenced code blocks with a copy button + language label, except for
+  // mermaid which gets routed to the lazy renderer in PreviewPane.
   code(this: void, { text, lang }: Tokens.Code): string {
     const language = lang?.trim() || 'text'
+    if (language.toLowerCase() === 'mermaid') {
+      return `<div class="plume-mermaid" data-mermaid="">${escapeHtml(text)}</div>`
+    }
     return `<div class="plume-codeblock" data-lang="${escapeHtml(language)}"><div class="plume-codeblock-head"><span class="plume-codeblock-lang">${escapeHtml(language)}</span><button class="plume-copy" data-copy="${encodeURIComponent(text)}" type="button" aria-label="Copy code">Copy</button></div><pre><code class="language-${escapeHtml(language)}">${escapeHtml(text)}</code></pre></div>`
   },
 
@@ -268,6 +323,8 @@ marked.use({
     ...(highlight ?? []),
     ...(superscript ?? []),
     ...(subscript ?? []),
+    ...(mathInline ?? []),
+    ...(mathBlock ?? []),
     ...(wikilink ?? []),
     ...(frontmatter ?? []),
     ...(callout ?? []),
@@ -290,7 +347,7 @@ export function renderMarkdown(content: string, options: RenderOptions = {}): st
   taskCounter = 0
   const rawHtml = marked.parse(content) as string
   return DOMPurify.sanitize(rawHtml, {
-    ADD_ATTR: ['data-task-idx', 'data-wikilink', 'data-copy', 'data-lang'],
+    ADD_ATTR: ['data-task-idx', 'data-wikilink', 'data-copy', 'data-lang', 'data-katex', 'data-mermaid'],
     // Defense in depth — explicit deny list on top of DOMPurify's defaults
     // so the same protection applies regardless of the underlying DOM
     // implementation (browser, jsdom, happy-dom).
