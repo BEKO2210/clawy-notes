@@ -461,3 +461,97 @@ export function formatDate(dateString: string): string {
 
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
+
+// ─── Folder tree ────────────────────────────────────────────────────────────
+
+export interface FolderNode<F extends { id: string; parentId: string | null }> {
+  folder: F
+  depth: number
+  children: FolderNode<F>[]
+}
+
+/**
+ * Build a parent/child tree from a flat folder list. Folders whose `parentId`
+ * does not resolve to an existing folder, or that participate in a cycle, are
+ * surfaced at the top level so they remain reachable in the UI.
+ */
+export function buildFolderTree<F extends { id: string; parentId: string | null }>(
+  folders: F[],
+): FolderNode<F>[] {
+  const byId = new Map(folders.map((f) => [f.id, f]))
+  const childrenByParent = new Map<string | null, F[]>()
+  const visited = new Set<string>()
+
+  for (const f of folders) {
+    const parent = f.parentId && byId.has(f.parentId) ? f.parentId : null
+    const list = childrenByParent.get(parent) ?? []
+    list.push(f)
+    childrenByParent.set(parent, list)
+  }
+
+  const build = (parent: string | null, depth: number): FolderNode<F>[] => {
+    const list = childrenByParent.get(parent) ?? []
+    const out: FolderNode<F>[] = []
+    for (const f of list) {
+      if (visited.has(f.id)) continue
+      visited.add(f.id)
+      out.push({ folder: f, depth, children: build(f.id, depth + 1) })
+    }
+    return out
+  }
+
+  const roots = build(null, 0)
+  // Cycle survivors (folders never reached from a real root) — anchor them
+  // at the top level so the user can still see and fix them.
+  for (const f of folders) {
+    if (!visited.has(f.id)) {
+      visited.add(f.id)
+      roots.push({ folder: f, depth: 0, children: build(f.id, 1) })
+    }
+  }
+  return roots
+}
+
+/**
+ * Returns the set of folder ids that are descendants of `rootId`
+ * (excluding the root itself). Used to forbid moving a folder under
+ * one of its own descendants and to detect orphaned subtrees.
+ */
+export function collectDescendantIds<F extends { id: string; parentId: string | null }>(
+  folders: F[],
+  rootId: string,
+): Set<string> {
+  const childrenByParent = new Map<string, F[]>()
+  for (const f of folders) {
+    if (!f.parentId) continue
+    const list = childrenByParent.get(f.parentId) ?? []
+    list.push(f)
+    childrenByParent.set(f.parentId, list)
+  }
+  const out = new Set<string>()
+  const stack = [rootId]
+  while (stack.length) {
+    const id = stack.pop()!
+    for (const child of childrenByParent.get(id) ?? []) {
+      if (out.has(child.id)) continue
+      out.add(child.id)
+      stack.push(child.id)
+    }
+  }
+  return out
+}
+
+/** Flatten a folder tree depth-first so callers can render it as a list. */
+export function flattenFolderTree<F extends { id: string; parentId: string | null }>(
+  tree: FolderNode<F>[],
+): FolderNode<F>[] {
+  const out: FolderNode<F>[] = []
+  const walk = (nodes: FolderNode<F>[]) => {
+    for (const n of nodes) {
+      out.push(n)
+      walk(n.children)
+    }
+  }
+  walk(tree)
+  return out
+}

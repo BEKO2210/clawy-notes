@@ -49,30 +49,40 @@
   - Export to `plume-backup-YYYY-MM-DD.json`
   - Import with merge or replace mode + preview screen
   - Reset all (two-step confirm)
-- 29 Vitest unit tests (lib + store), all green, ~600 ms total
+- 88 Vitest tests (lib + store + components), all green, ~2 s total
 - PWA: manifest.webmanifest + service worker via vite-plugin-pwa
   (offline-capable app shell, autoUpdate registration, Google Fonts cached)
 - Renamed brand from "Clawy Notes" to "Plume" (after public-source name check)
+- IndexedDB (Dexie) primary persistence with one-shot localStorage migration
+  (`src/db.ts` + `idbStorage` adapter in `src/store.ts`)
+
+### Stage 6 - 1.0 Hardening
+- Hierarchical folders: `buildFolderTree` / `flattenFolderTree` / `collectDescendantIds`
+  helpers in `lib.ts` (cycle-safe, orphan-tolerant), recursive `<FolderTree>`
+  component with expand/collapse chevrons, indentation, per-folder note counts,
+  and a parent selector in the "New folder" form. The note "Move to" picker
+  also renders the same hierarchy.
+- Component-level tests with React Testing Library:
+  `<FolderTree>` (render, collapse/expand, click handlers),
+  `<ErrorBoundary>` (happy path, fallback UI, reset-data confirm flow),
+  `<Picker>` (open/close, Esc, outside-click).
 
 ---
 
 ## Pending / Future
 
 ### Nice-to-have
-- [ ] Hierarchical folders (parent/child tree, drag-and-drop)
-- [ ] IndexedDB (Dexie) migration from `localStorage` (5 MB cap)
+- [ ] Drag-and-drop folder reparenting (current parenting is via the new-folder form)
 - [ ] PNG icon variants for stricter Android install banners
 - [ ] Per-note Markdown export (right now only full JSON backup)
 - [ ] Bundle slimming: split CodeMirror further, lucide-react tree-shake
 - [ ] Privacy + about pages
-- [ ] React testing (currently logic-only tests; no component render tests)
+- [ ] Lighthouse / a11y audit pass
 - [ ] Real-device mobile QA pass
 - [ ] Optional remote sync (CRDT or Yjs)
 
-### Production-readiness: ~90%
+### Production-readiness: ~95%
 
 What's left for 100%:
-1. Hierarchical folders or accept the flat-folder limitation as a 1.0 design choice
-2. IndexedDB migration so notes can grow past localStorage's 5 MB
-3. Component-level tests (TestingLibrary), Lighthouse / a11y audit, real-device QA
-4. Trademark clearance (formal, by a lawyer) before any commercial launch
+1. Lighthouse / a11y audit and a real-device mobile QA pass
+2. Trademark clearance (formal, by a lawyer) before any commercial launch
