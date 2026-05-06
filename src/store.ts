@@ -425,7 +425,7 @@ export const useNoteStore = create<NoteStore>()(
       },
       
       getNotesByTag: (tagId) => {
-        return get().notes.filter((n) => n.tags.includes(tagId) && !n.isArchived)
+        return get().notes.filter((n) => !n.isArchived && (n.tags ?? []).includes(tagId))
       },
       
       getPinnedNotes: () => {
@@ -434,11 +434,12 @@ export const useNoteStore = create<NoteStore>()(
       
       searchNotes: (query) => {
         const q = query.toLowerCase()
-        return get().notes.filter(
-          (n) =>
-            !n.isArchived &&
-            (n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q))
-        )
+        return get().notes.filter((n) => {
+          if (n.isArchived) return false
+          const title = (n.title ?? '').toLowerCase()
+          const content = (n.content ?? '').toLowerCase()
+          return title.includes(q) || content.includes(q)
+        })
       },
 
       replaceData: ({ notes, folders, tags }) => {

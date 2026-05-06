@@ -13,10 +13,29 @@
 .prose h1 { font-size: 1.75em; font-weight: 700; }
 .prose h2 { font-size: 1.5em; font-weight: 600; }
 .prose h3 { font-size: 1.25em; font-weight: 600; }
+.prose h4 { font-size: 1.1em;  font-weight: 600; }
+.prose h5 { font-size: 1em;    font-weight: 600; }
+.prose h6 { font-size: 0.95em; font-weight: 600; color: var(--text-secondary); }
 
 .prose p {
   margin-bottom: 1em;
   line-height: 1.7;
+}
+
+.prose strong, .prose b { font-weight: 700; }
+.prose em, .prose i     { font-style: italic; }
+.prose del, .prose s    { text-decoration: line-through; opacity: 0.75; }
+.prose mark             { background-color: rgba(250, 204, 21, 0.28); color: inherit; padding: 0 2px; border-radius: 3px; }
+.prose sub              { font-size: 0.75em; vertical-align: sub; }
+.prose sup              { font-size: 0.75em; vertical-align: super; }
+.prose kbd {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85em;
+  padding: 1px 6px;
+  border: 1px solid var(--bg-tertiary);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--bg-secondary);
 }
 
 .prose ul, .prose ol {
@@ -24,8 +43,27 @@
   padding-left: 1.5em;
 }
 
+/* Tailwind's preflight wipes the default list-style — restore it for the
+ * preview pane so bullets / numbers actually render. */
+.prose ul { list-style-type: disc; }
+.prose ol { list-style-type: decimal; }
+.prose ul ul { list-style-type: circle; }
+.prose ul ul ul { list-style-type: square; }
+
 .prose li {
   margin-bottom: 0.25em;
+}
+
+.prose li::marker {
+  color: var(--text-tertiary);
+}
+
+/* Task list items: drop the bullet so the checkbox stands alone. */
+.prose li:has(> input[type="checkbox"]),
+.prose li:has(> .plume-task-checkbox),
+.prose li.task-list-item {
+  list-style: none;
+  margin-left: -1.25em;
 }
 
 .prose blockquote {

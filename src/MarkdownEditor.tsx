@@ -3,6 +3,37 @@ import { EditorView, minimalSetup } from 'codemirror'
 import { keymap } from '@codemirror/view'
 import { Compartment, EditorState } from '@codemirror/state'
 import { markdown } from '@codemirror/lang-markdown'
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
+import { tags as t } from '@lezer/highlight'
+
+// High-contrast highlight style for the editor side: makes sure list
+// markers, headings and inline formatting markers stay visible against
+// both light and dark backgrounds. Without this the default style
+// renders `-`, `*`, `1.` and `[ ]` in such a low-contrast grey that
+// users have reported them as "disappearing" while typing.
+const plumeHighlightStyle = HighlightStyle.define([
+  { tag: t.heading1, fontWeight: '700', color: 'var(--text-primary)' },
+  { tag: t.heading2, fontWeight: '700', color: 'var(--text-primary)' },
+  { tag: t.heading3, fontWeight: '600', color: 'var(--text-primary)' },
+  { tag: t.heading4, fontWeight: '600', color: 'var(--text-primary)' },
+  { tag: t.heading5, fontWeight: '600', color: 'var(--text-primary)' },
+  { tag: t.heading6, fontWeight: '600', color: 'var(--text-secondary)' },
+  // List markers (`-`, `*`, `+`, `1.`) are usually `tags.list` or
+  // `tags.processingInstruction` — paint both, accent-coloured so they
+  // stand out from the body text.
+  { tag: t.list, color: 'var(--accent)', fontWeight: '600' },
+  { tag: t.processingInstruction, color: 'var(--accent)' },
+  { tag: t.contentSeparator, color: 'var(--text-tertiary)' },
+  { tag: t.quote, color: 'var(--text-secondary)', fontStyle: 'italic' },
+  { tag: t.emphasis, fontStyle: 'italic' },
+  { tag: t.strong, fontWeight: '700' },
+  { tag: t.strikethrough, textDecoration: 'line-through' },
+  { tag: t.link, color: 'var(--accent)', textDecoration: 'underline' },
+  { tag: t.url, color: 'var(--accent)' },
+  { tag: t.monospace, color: 'var(--text-primary)', backgroundColor: 'var(--bg-secondary)' },
+  { tag: t.atom, color: 'var(--accent)' },
+  { tag: t.meta, color: 'var(--text-tertiary)' },
+])
 
 function setHeadingLevel(view: EditorView, level: number): boolean {
   const { state } = view
@@ -116,6 +147,14 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     const viewRef = useRef<EditorView | null>(null)
     const onChangeRef = useRef(onChange)
     const darkCompartment = useRef(new Compartment())
+    // Tracks the value most recently emitted by the editor via onChange.
+    // If the parent round-trips that exact value back to us as a new
+    // `value` prop, we know we don't need to sync — the doc already has
+    // it. Without this, every keystroke fires the [value] effect, and
+    // any stray ref/string mismatch (e.g. during IME composition on
+    // mobile) would trigger a `dispatch({from:0, to:N, insert:value})`
+    // that wipes the cursor and races the user's input.
+    const lastEmittedRef = useRef<string>(value)
 
     onChangeRef.current = onChange
 
@@ -205,13 +244,16 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
           extensions: [
             minimalSetup,
             markdown(),
+            syntaxHighlighting(plumeHighlightStyle),
             EditorView.lineWrapping,
             baseTheme,
             markdownKeymap,
             darkCompartment.current.of(EditorView.theme({}, { dark: darkMode })),
             EditorView.updateListener.of((update) => {
               if (update.docChanged) {
-                onChangeRef.current(update.state.doc.toString())
+                const next = update.state.doc.toString()
+                lastEmittedRef.current = next
+                onChangeRef.current(next)
               }
             }),
           ],
@@ -226,12 +268,24 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    // Sync external value -> editor when they diverge (e.g. switching notes)
+    // Sync external value -> editor when they diverge (e.g. switching
+    // notes, importing a backup). We only act on **external** changes:
+    // if `value` equals the string the editor itself just emitted via
+    // onChange, the doc already has it and we leave the editor alone.
+    // That avoids resetting the cursor and racing user input on every
+    // keystroke.
     useEffect(() => {
       const view = viewRef.current
       if (!view) return
+      if (value === lastEmittedRef.current) return
       const current = view.state.doc.toString()
-      if (current === value) return
+      if (current === value) {
+        lastEmittedRef.current = value
+        return
+      }
+      // External change — replace the doc and remember the new baseline
+      // so the next keystroke doesn't see a phantom mismatch.
+      lastEmittedRef.current = value
       view.dispatch({
         changes: { from: 0, to: current.length, insert: value },
       })
