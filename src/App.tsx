@@ -1,20 +1,22 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react'
+import type { Note } from './types'
 import {
   Plus, Search, Menu, Moon, Sun, Eye, Edit3, Columns2,
   Folder, Tag, Pin, Archive, Trash2, ChevronLeft, FileText,
   Bold, Italic, Heading, List, CheckSquare,
   Strikethrough, Code, Link as LinkIcon, Quote, ListOrdered,
   Table as TableIcon, Image as ImageIcon, Minus, Code2, X, Check,
-  Settings as SettingsIcon
+  Settings as SettingsIcon, Highlighter, ChevronUp, ChevronDown
 } from 'lucide-react'
 import { SettingsModal } from './SettingsModal'
+import { AuditPage } from './AuditPage'
 
 const TAG_PALETTE = [
   '#0ea5e9', '#22c55e', '#f59e0b', '#ef4444',
   '#8b5cf6', '#ec4899', '#14b8a6', '#a3a3a3',
 ] as const
 import { useNoteStore } from './store'
-import { renderMarkdown, extractTitle, formatDate } from './lib'
+import { renderMarkdown, extractTitle, formatDate, toggleTaskInContent } from './lib'
 import type { MarkdownEditorHandle } from './MarkdownEditor'
 import './App.css'
 
@@ -81,8 +83,17 @@ function Toolbar({ onWrap, onPrefix, onLink, onImage, onCodeBlock, onTable, onHr
       <ToolbarButton onClick={() => onWrap('*', '*', 'italic')} title="Italic" shortcut="Ctrl+I">
         <Italic className="w-4 h-4" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => onWrap('~~', '~~', 'strike')} title="Strikethrough">
+      <ToolbarButton onClick={() => onWrap('~~', '~~', 'strike')} title="Strikethrough" shortcut="Ctrl+Shift+X">
         <Strikethrough className="w-4 h-4" />
+      </ToolbarButton>
+      <ToolbarButton onClick={() => onWrap('==', '==', 'highlight')} title="Highlight" shortcut="Ctrl+Shift+H">
+        <Highlighter className="w-4 h-4" />
+      </ToolbarButton>
+      <ToolbarButton onClick={() => onWrap('^', '^', 'sup')} title="Superscript">
+        <ChevronUp className="w-4 h-4" />
+      </ToolbarButton>
+      <ToolbarButton onClick={() => onWrap('~', '~', 'sub')} title="Subscript">
+        <ChevronDown className="w-4 h-4" />
       </ToolbarButton>
       <ToolbarButton onClick={() => onWrap('`', '`', 'code')} title="Inline code" shortcut="Ctrl+`">
         <Code className="w-4 h-4" />
@@ -486,6 +497,97 @@ function Sidebar() {
   )
 }
 
+// Preview pane — renders markdown HTML with interactive task checkboxes,
+// wikilink navigation, and copy-buttons inside fenced code blocks.
+function PreviewPane({ note }: { note: Note }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const { notes, updateNote, addNote, setActiveNote } = useNoteStore()
+  const existingTitles = useMemo(
+    () => new Set(notes.filter((n) => !n.isArchived).map((n) => n.title)),
+    [notes],
+  )
+  const html = useMemo(
+    () => renderMarkdown(note.content, { existingTitles }),
+    [note.content, existingTitles],
+  )
+
+  useEffect(() => {
+    const root = containerRef.current
+    if (!root) return
+
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null
+      if (!target) return
+
+      // Task list checkbox
+      const checkbox = target.closest<HTMLInputElement>('input[data-task-idx]')
+      if (checkbox) {
+        e.preventDefault()
+        const idx = Number(checkbox.dataset.taskIdx)
+        if (Number.isFinite(idx)) {
+          updateNote(note.id, { content: toggleTaskInContent(note.content, idx) })
+        }
+        return
+      }
+
+      // Wikilink
+      const wiki = target.closest<HTMLAnchorElement>('a[data-wikilink]')
+      if (wiki) {
+        e.preventDefault()
+        const title = wiki.dataset.wikilink ?? ''
+        const match = notes.find(
+          (n) => n.title.toLowerCase() === title.toLowerCase() && !n.isArchived,
+        )
+        if (match) {
+          setActiveNote(match.id)
+        } else if (title) {
+          addNote({ title, content: `# ${title}\n\n` })
+        }
+        return
+      }
+
+      // External link → open in new tab
+      const ext = target.closest<HTMLAnchorElement>('a[href]:not([data-wikilink])')
+      if (ext) {
+        const href = ext.getAttribute('href') ?? ''
+        if (/^https?:\/\//i.test(href)) {
+          e.preventDefault()
+          window.open(href, '_blank', 'noopener,noreferrer')
+        }
+        return
+      }
+
+      // Code block copy
+      const copy = target.closest<HTMLButtonElement>('button[data-copy]')
+      if (copy) {
+        e.preventDefault()
+        const text = decodeURIComponent(copy.dataset.copy ?? '')
+        navigator.clipboard.writeText(text).then(() => {
+          copy.dataset.copied = 'true'
+          copy.textContent = 'Copied'
+          window.setTimeout(() => {
+            delete copy.dataset.copied
+            copy.textContent = 'Copy'
+          }, 1200)
+        })
+      }
+    }
+
+    root.addEventListener('click', onClick)
+    return () => {
+      root.removeEventListener('click', onClick)
+    }
+  }, [note.id, note.content, notes, updateNote, addNote, setActiveNote])
+
+  return (
+    <div
+      ref={containerRef}
+      className="prose prose-sm max-w-none p-4 dark:prose-invert"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  )
+}
+
 // Main Editor Component
 function Editor() {
   const { getActiveNote, updateNote, viewMode, setViewMode, deleteNote, pinNote, archiveNote, darkMode, sidebarOpen, tags } = useNoteStore()
@@ -754,10 +856,7 @@ function Editor() {
         )}
         {(viewMode === 'preview' || viewMode === 'split') && (
           <div className={`${viewMode === 'split' ? 'w-1/2 border-l border-[var(--bg-tertiary)]' : 'w-full'} h-full overflow-y-auto`}>
-            <div
-              className="prose prose-sm max-w-none p-4 dark:prose-invert"
-              dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
-            />
+            <PreviewPane note={note} />
           </div>
         )}
       </div>
@@ -775,6 +874,10 @@ function Editor() {
 // Main App
 function App() {
   const { darkMode, toggleDarkMode, addNote, sidebarOpen, setSidebarOpen } = useNoteStore()
+  const [auditOpen, setAuditOpen] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return new URLSearchParams(window.location.search).get('audit') === '1'
+  })
 
   useEffect(() => {
     if (darkMode) {
@@ -824,6 +927,16 @@ function App() {
       >
         {darkMode ? <Sun className="w-5 h-5 text-[var(--text-secondary)]" /> : <Moon className="w-5 h-5 text-[var(--text-secondary)]" />}
       </button>
+      {auditOpen && (
+        <AuditPage
+          onClose={() => {
+            setAuditOpen(false)
+            const url = new URL(window.location.href)
+            url.searchParams.delete('audit')
+            window.history.replaceState({}, '', url.toString())
+          }}
+        />
+      )}
     </div>
   )
 }

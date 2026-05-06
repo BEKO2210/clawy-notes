@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extractTitle, formatDate, renderMarkdown } from './lib'
+import { extractTitle, formatDate, renderMarkdown, toggleTaskInContent } from './lib'
 
 describe('extractTitle', () => {
   it('uses the first heading as the title', () => {
@@ -93,5 +93,72 @@ describe('renderMarkdown', () => {
 
   it('returns empty string for empty input', () => {
     expect(renderMarkdown('')).toBe('')
+  })
+
+  it('renders highlight ==text== as <mark>', () => {
+    const html = renderMarkdown('foo ==hi== bar')
+    expect(html).toContain('<mark class="plume-highlight">hi</mark>')
+  })
+
+  it('renders ^text^ as <sup>', () => {
+    const html = renderMarkdown('H^2^O')
+    expect(html).toContain('<sup>2</sup>')
+  })
+
+  it('renders ~text~ as <sub> without breaking ~~strike~~', () => {
+    const sub = renderMarkdown('CO~2~')
+    expect(sub).toContain('<sub>2</sub>')
+    const strike = renderMarkdown('~~strike~~')
+    expect(strike).toMatch(/<(del|s)>strike<\/(del|s)>/)
+    expect(strike).not.toContain('<sub>')
+  })
+
+  it('renders [[wikilink]] as anchor with data-wikilink', () => {
+    const html = renderMarkdown('See [[Hello World]]', {
+      existingTitles: new Set(['Hello World']),
+    })
+    expect(html).toMatch(/<a[^>]*data-wikilink="Hello World"/)
+    expect(html).toContain('class="plume-wikilink"')
+  })
+
+  it('marks unmatched [[wikilink]] as ghost', () => {
+    const html = renderMarkdown('See [[Unknown]]')
+    expect(html).toContain('plume-wikilink-ghost')
+  })
+
+  it('renders YAML frontmatter as a properties block', () => {
+    const html = renderMarkdown('---\ntitle: Hello\ntags: a, b\n---\n\n# Body')
+    expect(html).toContain('plume-frontmatter')
+    expect(html).toContain('Properties')
+    expect(html).toContain('<span class="plume-fm-key">title</span>')
+    expect(html).toContain('<span class="plume-fm-value">Hello</span>')
+  })
+
+  it('wraps fenced code blocks with copy button + language label', () => {
+    const html = renderMarkdown('```js\nconst x = 1\n```')
+    expect(html).toContain('class="plume-codeblock"')
+    expect(html).toContain('data-lang="js"')
+    expect(html).toMatch(/class="plume-copy"[^>]*>Copy<\/button>/)
+  })
+
+  it('assigns sequential data-task-idx to task checkboxes', () => {
+    const html = renderMarkdown('- [ ] one\n- [x] two\n- [ ] three')
+    expect(html).toContain('data-task-idx="0"')
+    expect(html).toContain('data-task-idx="1"')
+    expect(html).toContain('data-task-idx="2"')
+  })
+})
+
+describe('toggleTaskInContent', () => {
+  it('toggles the n-th task between [ ] and [x]', () => {
+    const src = '- [ ] one\n- [x] two\n- [ ] three'
+    expect(toggleTaskInContent(src, 0)).toBe('- [x] one\n- [x] two\n- [ ] three')
+    expect(toggleTaskInContent(src, 1)).toBe('- [ ] one\n- [ ] two\n- [ ] three')
+    expect(toggleTaskInContent(src, 2)).toBe('- [ ] one\n- [x] two\n- [x] three')
+  })
+
+  it('leaves the source unchanged when index is out of range', () => {
+    const src = '- [ ] only'
+    expect(toggleTaskInContent(src, 5)).toBe(src)
   })
 })

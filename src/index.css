@@ -137,6 +137,171 @@
   border-radius: 2px;
 }
 
+/* ─── Markdown preview extensions ───────────────────────────────── */
+
+.plume-highlight {
+  background-color: rgba(250, 204, 21, 0.28);
+  color: var(--text-primary);
+  padding: 0 2px;
+  border-radius: 3px;
+  font-weight: inherit;
+}
+
+.dark .plume-highlight {
+  background-color: rgba(250, 204, 21, 0.22);
+}
+
+.plume-frontmatter {
+  border: 1px solid var(--bg-tertiary);
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 0 0 16px 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.plume-fm-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+
+.plume-fm-row {
+  display: flex;
+  gap: 12px;
+  padding: 2px 0;
+}
+
+.plume-fm-key {
+  color: var(--text-tertiary);
+  min-width: 80px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.plume-fm-value {
+  color: var(--text-primary);
+  flex: 1;
+  word-break: break-word;
+}
+
+.plume-codeblock {
+  position: relative;
+  margin: 12px 0;
+  border-radius: 8px;
+  border: 1px solid var(--bg-tertiary);
+  overflow: hidden;
+  background-color: var(--bg-secondary);
+}
+
+.plume-codeblock-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--bg-tertiary);
+  background-color: var(--bg-secondary);
+}
+
+.plume-codeblock-lang {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.plume-copy {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-tertiary);
+  border: 1px solid var(--bg-tertiary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.plume-copy:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.plume-copy[data-copied='true'] {
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.plume-codeblock pre {
+  margin: 0;
+  padding: 12px;
+  overflow-x: auto;
+  background: transparent !important;
+}
+
+.plume-codeblock code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.plume-wikilink {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.plume-wikilink:hover {
+  color: var(--accent-hover);
+  border-bottom-color: var(--accent-hover);
+}
+
+.plume-wikilink-ghost {
+  color: var(--text-tertiary);
+  border-bottom-style: dashed;
+  border-bottom-color: var(--text-tertiary);
+}
+
+.plume-wikilink-ghost:hover {
+  color: var(--text-secondary);
+  border-bottom-color: var(--text-secondary);
+}
+
+.plume-task-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--text-tertiary);
+  border-radius: 3px;
+  vertical-align: -2px;
+  margin-right: 6px;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.plume-task-checkbox:hover {
+  border-color: var(--accent);
+}
+
+.plume-task-checkbox:checked {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='white'%3E%3Cpath d='M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z'/%3E%3C/svg%3E");
+  background-size: 12px;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
 /* Honor reduced-motion preference for users who set it */
 @media (prefers-reduced-motion: reduce) {
   *,
