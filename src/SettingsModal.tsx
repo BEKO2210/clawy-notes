@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Download, Upload, RotateCcw, X, FileText, FolderClosed, Tag, Sparkles } from 'lucide-react'
+import { Download, Upload, RotateCcw, X, FileText, FolderClosed, Tag, Sparkles, MonitorDown } from 'lucide-react'
 import { buildAIExport, isValidBackup, useNoteStore, type PlumeBackup } from './store'
+import { getInstallState, subscribeInstallState, triggerInstall } from './pwaInstall'
 
 interface SettingsModalProps {
   onClose: () => void
@@ -34,6 +35,20 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirmReset, setConfirmReset] = useState(false)
+  const [installState, setInstallState] = useState(getInstallState)
+
+  useEffect(() => {
+    return subscribeInstallState(() => setInstallState(getInstallState()))
+  }, [])
+
+  const handleInstall = async () => {
+    const result = await triggerInstall()
+    if (result === 'unavailable') {
+      setError('The browser did not offer an install prompt yet — try again in a moment.')
+    } else {
+      setError(null)
+    }
+  }
 
   // Lock body scroll for the lifetime of the modal
   useEffect(() => {
@@ -148,6 +163,20 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
 
           {!importPreview && !confirmReset && (
             <>
+              {installState.canInstall && !installState.alreadyInstalled && (
+                <Action
+                  icon={<MonitorDown className="w-4 h-4" />}
+                  title="Install Plume"
+                  description="Install Plume as an app on this device — works offline, opens like a native app."
+                  onClick={handleInstall}
+                  tone="accent"
+                />
+              )}
+              {installState.alreadyInstalled && (
+                <p className="text-xs text-[var(--text-tertiary)] px-1">
+                  Plume is installed on this device.
+                </p>
+              )}
               <Action
                 icon={<Download className="w-4 h-4" />}
                 title="Export backup"
@@ -301,22 +330,26 @@ function Action({
   title: string
   description: string
   onClick: () => void
-  tone?: 'default' | 'danger'
+  tone?: 'default' | 'danger' | 'accent'
 }) {
+  const borderHover =
+    tone === 'danger'
+      ? 'border-red-500/30 hover:bg-red-500/10 text-red-500'
+      : tone === 'accent'
+      ? 'border-[var(--accent)]/40 hover:bg-[var(--accent)]/10 text-[var(--accent)]'
+      : 'border-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
+  const iconBg =
+    tone === 'danger'
+      ? 'bg-red-500/10'
+      : tone === 'accent'
+      ? 'bg-[var(--accent)]/15'
+      : 'bg-[var(--bg-tertiary)]'
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-start gap-3 px-3 py-3 rounded-lg border transition-all duration-150 active:scale-[0.99] text-left ${
-        tone === 'danger'
-          ? 'border-red-500/30 hover:bg-red-500/10 text-red-500'
-          : 'border-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
-      }`}
+      className={`w-full flex items-start gap-3 px-3 py-3 rounded-lg border transition-all duration-150 active:scale-[0.99] text-left ${borderHover}`}
     >
-      <span
-        className={`mt-0.5 inline-flex items-center justify-center w-8 h-8 rounded-lg ${
-          tone === 'danger' ? 'bg-red-500/10' : 'bg-[var(--bg-tertiary)]'
-        }`}
-      >
+      <span className={`mt-0.5 inline-flex items-center justify-center w-8 h-8 rounded-lg ${iconBg}`}>
         {icon}
       </span>
       <span className="flex-1 min-w-0">
