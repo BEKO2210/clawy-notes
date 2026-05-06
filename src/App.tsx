@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react'
 import type { Note } from './types'
 import {
   Plus, Search, Menu, Moon, Sun, Eye, Edit3, Columns2,
-  Folder, Tag, Pin, Archive, Trash2, ChevronLeft, FileText,
+  Folder, Tag, Pin, Archive, Trash2, ChevronLeft,
   Bold, Italic, Heading, List, CheckSquare,
   Strikethrough, Code, Link as LinkIcon, Quote, ListOrdered,
   Table as TableIcon, Image as ImageIcon, Minus, Code2, X, Check,
@@ -24,7 +24,16 @@ const TAG_PALETTE = [
   '#8b5cf6', '#ec4899', '#14b8a6', '#a3a3a3',
 ] as const
 import { useNoteStore } from './store'
-import { renderMarkdown, extractTitle, formatDate, toggleTaskInContent } from './lib'
+import {
+  buildFolderTree,
+  extractTitle,
+  flattenFolderTree,
+  formatDate,
+  renderMarkdown,
+  toggleTaskInContent,
+} from './lib'
+import { FolderTree } from './FolderTree'
+import { HomeDashboard } from './HomeDashboard'
 import type { MarkdownEditorHandle } from './MarkdownEditor'
 import './App.css'
 
@@ -142,6 +151,7 @@ function Toolbar({ onWrap, onPrefix, onLink, onImage, onCodeBlock, onTable, onHr
   )
 }
 
+
 // Sidebar component
 function Sidebar() {
   const {
@@ -155,11 +165,33 @@ function Sidebar() {
 
   const [showNewFolder, setShowNewFolder] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
+  const [newFolderParent, setNewFolderParent] = useState<string | null>(null)
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => new Set())
   const [showNewTag, setShowNewTag] = useState(false)
   const [newTagName, setNewTagName] = useState('')
   const [newTagColor, setNewTagColor] = useState<string>(TAG_PALETTE[0])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
+
+  const folderTree = useMemo(() => buildFolderTree(folders), [folders])
+  const flatFolders = useMemo(() => flattenFolderTree(folderTree), [folderTree])
+  const folderNoteCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const n of notes) {
+      if (n.isArchived || !n.folderId) continue
+      counts.set(n.folderId, (counts.get(n.folderId) ?? 0) + 1)
+    }
+    return counts
+  }, [notes])
+
+  const toggleFolderCollapsed = (id: string) => {
+    setCollapsedFolders((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   useEffect(() => {
     const focus = () => {
@@ -201,8 +233,9 @@ function Sidebar() {
   const handleNewFolder = (e: React.FormEvent) => {
     e.preventDefault()
     if (newFolderName.trim()) {
-      addFolder(newFolderName)
+      addFolder(newFolderName.trim(), newFolderParent)
       setNewFolderName('')
+      setNewFolderParent(null)
       setShowNewFolder(false)
     }
   }
@@ -316,7 +349,7 @@ function Sidebar() {
           </button>
         </div>
         {showNewFolder && (
-          <form onSubmit={handleNewFolder} className="mb-2">
+          <form onSubmit={handleNewFolder} className="mb-2 space-y-1.5">
             <input
               type="text"
               value={newFolderName}
@@ -325,6 +358,21 @@ function Sidebar() {
               className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] text-sm focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
               autoFocus
             />
+            {flatFolders.length > 0 && (
+              <select
+                aria-label="Parent folder"
+                value={newFolderParent ?? ''}
+                onChange={(e) => setNewFolderParent(e.target.value || null)}
+                className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] text-xs text-[var(--text-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+              >
+                <option value="">No parent (top-level)</option>
+                {flatFolders.map((node) => (
+                  <option key={node.folder.id} value={node.folder.id}>
+                    {`${'  '.repeat(node.depth)}${node.folder.name}`}
+                  </option>
+                ))}
+              </select>
+            )}
           </form>
         )}
         <div className="space-y-1">
@@ -338,21 +386,14 @@ function Sidebar() {
             <span>All Notes</span>
             <span className="ml-auto text-xs text-[var(--text-tertiary)]">{notes.filter(n => !n.isArchived).length}</span>
           </button>
-          {folders.map(folder => (
-            <button
-              key={folder.id}
-              onClick={() => setActiveFolder(folder.id)}
-              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors ${
-                activeFolder === folder.id ? 'bg-[var(--accent)]/10 text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
-              }`}
-            >
-              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: folder.color }} />
-              <span>{folder.name}</span>
-              <span className="ml-auto text-xs text-[var(--text-tertiary)]">
-                {notes.filter(n => n.folderId === folder.id && !n.isArchived).length}
-              </span>
-            </button>
-          ))}
+          <FolderTree
+            tree={folderTree}
+            activeFolder={activeFolder}
+            collapsed={collapsedFolders}
+            counts={folderNoteCounts}
+            onPick={setActiveFolder}
+            onToggle={toggleFolderCollapsed}
+          />
           {archivedCount > 0 && (
             <button
               onClick={() => setActiveFolder('__archive__')}
@@ -692,7 +733,24 @@ function PreviewPane({ note }: { note: Note }) {
 
 // Main Editor Component
 function Editor() {
-  const { getActiveNote, updateNote, viewMode, setViewMode, deleteNote, pinNote, archiveNote, darkMode, sidebarOpen, tags, folders, rightSidebarOpen, setRightSidebarOpen } = useNoteStore()
+  const {
+    getActiveNote,
+    updateNote,
+    viewMode,
+    setViewMode,
+    deleteNote,
+    pinNote,
+    archiveNote,
+    darkMode,
+    sidebarOpen,
+    tags,
+    folders,
+    notes,
+    addNote,
+    setActiveNote,
+    rightSidebarOpen,
+    setRightSidebarOpen,
+  } = useNoteStore()
   const note = getActiveNote()
   const editorRef = useRef<MarkdownEditorHandle>(null)
   const content = note?.content ?? ''
@@ -769,13 +827,14 @@ function Editor() {
 
   if (!note) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[var(--bg-primary)]">
-        <div className="text-center">
-          <FileText className="w-12 h-12 text-[var(--text-tertiary)] mx-auto mb-3" />
-          <p className="text-lg font-medium text-[var(--text-secondary)]">Select a note or create one</p>
-          <p className="text-sm text-[var(--text-tertiary)] mt-1">Your markdown notes will appear here</p>
-        </div>
-      </div>
+      <HomeDashboard
+        notes={notes}
+        folders={folders}
+        tags={tags}
+        sidebarOpen={sidebarOpen}
+        onPick={setActiveNote}
+        onNew={() => addNote({ title: 'New Note', content: '# New Note\n\nStart writing...' })}
+      />
     )
   }
 
@@ -802,13 +861,15 @@ function Editor() {
               onClose={() => setShowFolderPicker(false)}
               title="Move to"
             >
-              {folders.map((f) => {
+              {flattenFolderTree(buildFolderTree(folders)).map((node) => {
+                const f = node.folder
                 const active = note.folderId === f.id
                 return (
                   <button
                     key={f.id}
                     onClick={() => moveToFolder(f.id)}
                     className="w-full flex items-center gap-3 px-3 py-2.5 rounded hover:bg-[var(--bg-tertiary)] transition-colors text-left"
+                    style={{ paddingLeft: `${12 + node.depth * 16}px` }}
                   >
                     <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: f.color }} />
                     <span className="text-sm text-[var(--text-primary)] truncate flex-1">{f.name}</span>

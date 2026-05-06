@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { extractTitle, extractOutline, formatDate, renderMarkdown, toggleTaskInContent } from './lib'
+import {
+  buildFolderTree,
+  collectDescendantIds,
+  extractOutline,
+  extractTitle,
+  flattenFolderTree,
+  formatDate,
+  renderMarkdown,
+  toggleTaskInContent,
+} from './lib'
 
 describe('extractTitle', () => {
   it('uses the first heading as the title', () => {
@@ -241,5 +250,58 @@ describe('toggleTaskInContent', () => {
   it('leaves the source unchanged when index is out of range', () => {
     const src = '- [ ] only'
     expect(toggleTaskInContent(src, 5)).toBe(src)
+  })
+})
+
+describe('buildFolderTree', () => {
+  const f = (id: string, parentId: string | null = null) => ({ id, name: id, parentId, color: '#000' })
+
+  it('returns a flat list as roots when no parents are set', () => {
+    const tree = buildFolderTree([f('a'), f('b')])
+    expect(tree.map((n) => n.folder.id)).toEqual(['a', 'b'])
+    expect(tree.every((n) => n.depth === 0 && n.children.length === 0)).toBe(true)
+  })
+
+  it('nests children under their parent and tracks depth', () => {
+    const tree = buildFolderTree([
+      f('root'),
+      f('child', 'root'),
+      f('grand', 'child'),
+    ])
+    expect(tree).toHaveLength(1)
+    const [root] = tree
+    expect(root.folder.id).toBe('root')
+    expect(root.children).toHaveLength(1)
+    expect(root.children[0].folder.id).toBe('child')
+    expect(root.children[0].depth).toBe(1)
+    expect(root.children[0].children[0].folder.id).toBe('grand')
+    expect(root.children[0].children[0].depth).toBe(2)
+  })
+
+  it('promotes folders with missing parents to the root level', () => {
+    const tree = buildFolderTree([f('orphan', 'ghost')])
+    expect(tree).toHaveLength(1)
+    expect(tree[0].folder.id).toBe('orphan')
+    expect(tree[0].depth).toBe(0)
+  })
+
+  it('survives cycles without infinite recursion', () => {
+    const folders = [f('a', 'b'), f('b', 'a')]
+    const tree = buildFolderTree(folders)
+    const flat = flattenFolderTree(tree)
+    expect(new Set(flat.map((n) => n.folder.id))).toEqual(new Set(['a', 'b']))
+  })
+})
+
+describe('collectDescendantIds', () => {
+  const f = (id: string, parentId: string | null = null) => ({ id, name: id, parentId, color: '#000' })
+
+  it('collects all transitive descendants', () => {
+    const folders = [f('root'), f('a', 'root'), f('b', 'a'), f('c', 'root'), f('other')]
+    expect(collectDescendantIds(folders, 'root')).toEqual(new Set(['a', 'b', 'c']))
+  })
+
+  it('returns an empty set for a leaf folder', () => {
+    expect(collectDescendantIds([f('leaf')], 'leaf')).toEqual(new Set())
   })
 })

@@ -183,6 +183,20 @@ describe('buildAIExport', () => {
     expect(work.noteCount).toBe(2)
   })
 
+  it('exposes per-note degree + importance for AI ranking', () => {
+    useNoteStore.getState().addNote({ title: 'Hub', content: 'See [[Leaf1]], [[Leaf2]], [[Leaf3]].' })
+    useNoteStore.getState().addNote({ title: 'Leaf1', content: 'Back to [[Hub]].' })
+    useNoteStore.getState().addNote({ title: 'Leaf2', content: 'Back to [[Hub]].' })
+    useNoteStore.getState().addNote({ title: 'Leaf3', content: 'no link' })
+    const { notes, folders, tags } = useNoteStore.getState()
+    const ex = buildAIExport({ notes, folders, tags })
+    const hub = ex.notes.find((n) => n.title === 'Hub')!
+    const leaf3 = ex.notes.find((n) => n.title === 'Leaf3')!
+    expect(hub.degree).toBe(5) // 3 outbound (Leaf1/2/3) + 2 inbound (Leaf1/2)
+    expect(leaf3.degree).toBe(1) // inbound from Hub only
+    expect(hub.importance).toBeGreaterThan(leaf3.importance)
+  })
+
   it('snippets strip frontmatter, fences, links, and markdown punctuation', () => {
     useNoteStore.getState().addNote({
       title: 'Demo',
