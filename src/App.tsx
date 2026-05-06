@@ -7,7 +7,7 @@ import {
   Strikethrough, Code, Link as LinkIcon, Quote, ListOrdered,
   Table as TableIcon, Image as ImageIcon, Minus, Code2, X, Check,
   Settings as SettingsIcon, Highlighter, ChevronUp, ChevronDown,
-  ChevronRight, PanelRight
+  ChevronRight, PanelRight, Network
 } from 'lucide-react'
 import { SettingsModal } from './SettingsModal'
 import { AuditPage } from './AuditPage'
@@ -1140,6 +1140,7 @@ function RightSidebarContainer() {
 interface MobileFabProps {
   onOpenSettings: () => void
   onOpenPalette: () => void
+  onOpenGraph: () => void
   /**
    * Callback the FAB invokes when its X is tapped while any
    * non-sheet overlay is up (sidebar, palette, audit, graph, etc.).
@@ -1150,7 +1151,7 @@ interface MobileFabProps {
   onCloseAllOverlays: () => void
 }
 
-function MobileFab({ onOpenSettings, onOpenPalette, hasOtherOverlays, onCloseAllOverlays }: MobileFabProps) {
+function MobileFab({ onOpenSettings, onOpenPalette, onOpenGraph, hasOtherOverlays, onCloseAllOverlays }: MobileFabProps) {
   const { addNote, sidebarOpen, setSidebarOpen, darkMode, toggleDarkMode, fabPosition, setFabPosition } = useNoteStore()
   const [open, setOpen] = useState(false)
   const [dragging, setDragging] = useState(false)
@@ -1344,6 +1345,18 @@ function MobileFab({ onOpenSettings, onOpenPalette, hasOtherOverlays, onCloseAll
           </span>
         </button>
         <button
+          onClick={() => action(onOpenGraph)}
+          className="w-full flex items-center gap-3 px-3 py-3 rounded hover:bg-[var(--bg-tertiary)] transition-colors text-left"
+        >
+          <span className="w-9 h-9 rounded-lg bg-[var(--accent)]/15 flex items-center justify-center flex-shrink-0">
+            <Network className="w-4 h-4 text-[var(--accent)]" />
+          </span>
+          <span className="flex-1">
+            <span className="block text-sm font-medium text-[var(--text-primary)]">3D graph</span>
+            <span className="block text-xs text-[var(--text-tertiary)]">See your notes as a network</span>
+          </span>
+        </button>
+        <button
           onClick={() => action(toggleDarkMode)}
           className="w-full flex items-center gap-3 px-3 py-3 rounded hover:bg-[var(--bg-tertiary)] transition-colors text-left"
         >
@@ -1469,6 +1482,7 @@ function App() {
       <MobileFab
         onOpenSettings={() => window.dispatchEvent(new Event('clawy:open-settings'))}
         onOpenPalette={() => setPaletteOpen(true)}
+        onOpenGraph={() => setGraphOpen(true)}
         hasOtherOverlays={() => paletteOpen || auditOpen || graphOpen}
         onCloseAllOverlays={() => {
           setPaletteOpen(false)
