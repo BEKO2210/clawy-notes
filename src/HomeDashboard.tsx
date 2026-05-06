@@ -5,7 +5,8 @@ import { formatDate } from './lib'
 
 const SNIPPET_MAX = 140
 
-function buildSnippet(content: string): string {
+function buildSnippet(content: string | null | undefined): string {
+  if (!content) return ''
   return content
     .replace(/^---\n[\s\S]*?\n---\n?/, '')
     .replace(/```[\s\S]*?```/g, '')

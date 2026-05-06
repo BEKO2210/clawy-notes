@@ -422,7 +422,8 @@ function stripMarkdown(s: string): string {
     .trim()
 }
 
-export function extractTitle(content: string): string {
+export function extractTitle(content: string | null | undefined): string {
+  if (!content) return 'Untitled Note'
   // Skip a YAML frontmatter block when extracting the title.
   let body = content
   const fm = /^---\n[\s\S]*?\n---\n?/.exec(content)
@@ -440,8 +441,10 @@ export function extractTitle(content: string): string {
   return 'Untitled Note'
 }
 
-export function formatDate(dateString: string): string {
+export function formatDate(dateString: string | null | undefined): string {
+  if (!dateString) return ''
   const date = new Date(dateString)
+  if (isNaN(date.getTime())) return ''
   const now = new Date()
   const diff = now.getTime() - date.getTime()
 
