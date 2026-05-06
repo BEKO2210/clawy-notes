@@ -13,6 +13,7 @@ import { SettingsModal } from './SettingsModal'
 import { AuditPage } from './AuditPage'
 import { CommandPalette } from './CommandPalette'
 import { RightSidebar } from './RightSidebar'
+import { Picker } from './Picker'
 
 const TAG_PALETTE = [
   '#0ea5e9', '#22c55e', '#f59e0b', '#ef4444',
@@ -693,50 +694,12 @@ function Editor() {
   const confirmingDelete = note != null && confirmDeleteFor === note.id
   const [showTagPicker, setShowTagPicker] = useState(false)
   const [showFolderPicker, setShowFolderPicker] = useState(false)
-  const tagPickerRef = useRef<HTMLDivElement>(null)
-  const folderPickerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!confirmingDelete) return
     const timer = window.setTimeout(() => setConfirmDeleteFor(null), 3000)
     return () => window.clearTimeout(timer)
   }, [confirmingDelete])
-
-  useEffect(() => {
-    if (!showTagPicker) return
-    const onClick = (e: MouseEvent) => {
-      if (!tagPickerRef.current?.contains(e.target as Node)) {
-        setShowTagPicker(false)
-      }
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowTagPicker(false)
-    }
-    document.addEventListener('mousedown', onClick)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onClick)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [showTagPicker])
-
-  useEffect(() => {
-    if (!showFolderPicker) return
-    const onClick = (e: MouseEvent) => {
-      if (!folderPickerRef.current?.contains(e.target as Node)) {
-        setShowFolderPicker(false)
-      }
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowFolderPicker(false)
-    }
-    document.addEventListener('mousedown', onClick)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onClick)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [showFolderPicker])
 
   const moveToFolder = (folderId: string) => {
     if (!note) return
@@ -818,7 +781,7 @@ function Editor() {
           {note.isPinned && <Pin className="w-4 h-4 text-[var(--accent)] flex-shrink-0" />}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0 flex-wrap">
-          <div className="relative" ref={folderPickerRef}>
+          <div className="relative">
             <button
               onClick={() => setShowFolderPicker(v => !v)}
               className="p-2 rounded-lg transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
@@ -827,29 +790,28 @@ function Editor() {
             >
               <Folder className="w-4 h-4" />
             </button>
-            {showFolderPicker && (
-              <div className="absolute right-0 top-full mt-1 z-30 w-56 max-h-64 overflow-y-auto rounded-lg border border-[var(--bg-tertiary)] bg-[var(--bg-secondary)] shadow-xl p-1.5 animate-scale-in">
-                <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
-                  Move to
-                </p>
-                {folders.map((f) => {
-                  const active = note.folderId === f.id
-                  return (
-                    <button
-                      key={f.id}
-                      onClick={() => moveToFolder(f.id)}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[var(--bg-tertiary)] transition-colors text-left"
-                    >
-                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: f.color }} />
-                      <span className="text-sm text-[var(--text-primary)] truncate flex-1">{f.name}</span>
-                      {active && <Check className="w-3.5 h-3.5 text-[var(--accent)] flex-shrink-0" />}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
+            <Picker
+              open={showFolderPicker}
+              onClose={() => setShowFolderPicker(false)}
+              title="Move to"
+            >
+              {folders.map((f) => {
+                const active = note.folderId === f.id
+                return (
+                  <button
+                    key={f.id}
+                    onClick={() => moveToFolder(f.id)}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded hover:bg-[var(--bg-tertiary)] transition-colors text-left"
+                  >
+                    <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: f.color }} />
+                    <span className="text-sm text-[var(--text-primary)] truncate flex-1">{f.name}</span>
+                    {active && <Check className="w-4 h-4 text-[var(--accent)] flex-shrink-0" />}
+                  </button>
+                )
+              })}
+            </Picker>
           </div>
-          <div className="relative" ref={tagPickerRef}>
+          <div className="relative">
             <button
               onClick={() => setShowTagPicker(v => !v)}
               className={`relative p-2 rounded-lg transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
@@ -868,30 +830,32 @@ function Editor() {
                 </span>
               )}
             </button>
-            {showTagPicker && (
-              <div className="absolute right-0 top-full mt-1 z-30 w-56 max-h-64 overflow-y-auto rounded-lg border border-[var(--bg-tertiary)] bg-[var(--bg-secondary)] shadow-xl p-1.5 animate-scale-in">
-                {tags.length === 0 ? (
-                  <p className="px-2 py-2 text-xs text-[var(--text-tertiary)]">
-                    No tags yet. Create one in the sidebar.
-                  </p>
-                ) : (
-                  tags.map(t => {
-                    const has = note.tags.includes(t.id)
-                    return (
-                      <button
-                        key={t.id}
-                        onClick={() => toggleNoteTag(t.id)}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[var(--bg-tertiary)] transition-colors text-left"
-                      >
-                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
-                        <span className="text-sm text-[var(--text-primary)] truncate flex-1">{t.name}</span>
-                        {has && <Check className="w-3.5 h-3.5 text-[var(--accent)] flex-shrink-0" />}
-                      </button>
-                    )
-                  })
-                )}
-              </div>
-            )}
+            <Picker
+              open={showTagPicker}
+              onClose={() => setShowTagPicker(false)}
+              title={tags.length === 0 ? undefined : 'Tags'}
+            >
+              {tags.length === 0 ? (
+                <p className="px-3 py-3 text-sm text-[var(--text-tertiary)]">
+                  No tags yet. Create one in the sidebar.
+                </p>
+              ) : (
+                tags.map(t => {
+                  const has = note.tags.includes(t.id)
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => toggleNoteTag(t.id)}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded hover:bg-[var(--bg-tertiary)] transition-colors text-left"
+                    >
+                      <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
+                      <span className="text-sm text-[var(--text-primary)] truncate flex-1">{t.name}</span>
+                      {has && <Check className="w-4 h-4 text-[var(--accent)] flex-shrink-0" />}
+                    </button>
+                  )
+                })
+              )}
+            </Picker>
           </div>
           <button
             onClick={() => pinNote(note.id)}
@@ -1041,6 +1005,103 @@ function RightSidebarContainer() {
   return <RightSidebar note={note} onClose={() => setRightSidebarOpen(false)} />
 }
 
+function MobileFab({
+  onOpenSettings,
+  onOpenPalette,
+}: {
+  onOpenSettings: () => void
+  onOpenPalette: () => void
+}) {
+  const { addNote, sidebarOpen, setSidebarOpen, darkMode, toggleDarkMode } = useNoteStore()
+  const [open, setOpen] = useState(false)
+
+  const action = (run: () => void) => {
+    setOpen(false)
+    run()
+  }
+
+  return (
+    <div className="sm:hidden">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-label={open ? 'Close quick actions' : 'Open quick actions'}
+        aria-expanded={open}
+        className={`fixed bottom-4 right-4 z-[55] w-14 h-14 rounded-full shadow-lg active:scale-95 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+          open
+            ? 'bg-[var(--bg-secondary)] border border-[var(--bg-tertiary)] text-[var(--text-primary)]'
+            : 'bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)]'
+        }`}
+        style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <Plus className={`w-6 h-6 mx-auto transition-transform duration-200 ${open ? 'rotate-45' : ''}`} />
+      </button>
+
+      <Picker open={open} onClose={() => setOpen(false)} title="Quick actions">
+        <button
+          onClick={() => action(() => addNote({ title: 'New Note', content: '# New Note\n\nStart writing...' }))}
+          className="w-full flex items-center gap-3 px-3 py-3 rounded hover:bg-[var(--bg-tertiary)] transition-colors text-left"
+        >
+          <span className="w-9 h-9 rounded-lg bg-[var(--accent)]/15 flex items-center justify-center flex-shrink-0">
+            <Plus className="w-4 h-4 text-[var(--accent)]" />
+          </span>
+          <span className="flex-1">
+            <span className="block text-sm font-medium text-[var(--text-primary)]">New note</span>
+            <span className="block text-xs text-[var(--text-tertiary)]">Create a fresh note</span>
+          </span>
+        </button>
+        <button
+          onClick={() => action(() => setSidebarOpen(!sidebarOpen))}
+          className="w-full flex items-center gap-3 px-3 py-3 rounded hover:bg-[var(--bg-tertiary)] transition-colors text-left"
+        >
+          <span className="w-9 h-9 rounded-lg bg-[var(--bg-tertiary)] flex items-center justify-center flex-shrink-0">
+            <Menu className="w-4 h-4 text-[var(--text-secondary)]" />
+          </span>
+          <span className="flex-1">
+            <span className="block text-sm font-medium text-[var(--text-primary)]">{sidebarOpen ? 'Hide notes list' : 'Show notes list'}</span>
+            <span className="block text-xs text-[var(--text-tertiary)]">Toggle the sidebar drawer</span>
+          </span>
+        </button>
+        <button
+          onClick={() => action(onOpenPalette)}
+          className="w-full flex items-center gap-3 px-3 py-3 rounded hover:bg-[var(--bg-tertiary)] transition-colors text-left"
+        >
+          <span className="w-9 h-9 rounded-lg bg-[var(--bg-tertiary)] flex items-center justify-center flex-shrink-0">
+            <Search className="w-4 h-4 text-[var(--text-secondary)]" />
+          </span>
+          <span className="flex-1">
+            <span className="block text-sm font-medium text-[var(--text-primary)]">Search & commands</span>
+            <span className="block text-xs text-[var(--text-tertiary)]">Jump to a note or run a command</span>
+          </span>
+        </button>
+        <button
+          onClick={() => action(toggleDarkMode)}
+          className="w-full flex items-center gap-3 px-3 py-3 rounded hover:bg-[var(--bg-tertiary)] transition-colors text-left"
+        >
+          <span className="w-9 h-9 rounded-lg bg-[var(--bg-tertiary)] flex items-center justify-center flex-shrink-0">
+            {darkMode ? <Sun className="w-4 h-4 text-[var(--text-secondary)]" /> : <Moon className="w-4 h-4 text-[var(--text-secondary)]" />}
+          </span>
+          <span className="flex-1">
+            <span className="block text-sm font-medium text-[var(--text-primary)]">{darkMode ? 'Light theme' : 'Dark theme'}</span>
+            <span className="block text-xs text-[var(--text-tertiary)]">Switch the appearance</span>
+          </span>
+        </button>
+        <button
+          onClick={() => action(onOpenSettings)}
+          className="w-full flex items-center gap-3 px-3 py-3 rounded hover:bg-[var(--bg-tertiary)] transition-colors text-left"
+        >
+          <span className="w-9 h-9 rounded-lg bg-[var(--bg-tertiary)] flex items-center justify-center flex-shrink-0">
+            <SettingsIcon className="w-4 h-4 text-[var(--text-secondary)]" />
+          </span>
+          <span className="flex-1">
+            <span className="block text-sm font-medium text-[var(--text-primary)]">Settings</span>
+            <span className="block text-xs text-[var(--text-tertiary)]">Export, import, reset</span>
+          </span>
+        </button>
+      </Picker>
+    </div>
+  )
+}
+
 function HydrationSplash() {
   return (
     <div className="h-screen w-screen flex items-center justify-center bg-[var(--bg-primary)]">
@@ -1123,10 +1184,15 @@ function App() {
       <RightSidebarContainer />
       <button
         onClick={toggleDarkMode}
-        className="fixed bottom-4 right-4 p-3 rounded-full bg-[var(--bg-secondary)] border border-[var(--bg-tertiary)] shadow-lg hover-lift z-50"
+        aria-label={darkMode ? 'Switch to light theme' : 'Switch to dark theme'}
+        className="hidden sm:inline-flex fixed bottom-4 right-4 p-3 rounded-full bg-[var(--bg-secondary)] border border-[var(--bg-tertiary)] shadow-lg hover-lift z-50"
       >
         {darkMode ? <Sun className="w-5 h-5 text-[var(--text-secondary)]" /> : <Moon className="w-5 h-5 text-[var(--text-secondary)]" />}
       </button>
+      <MobileFab
+        onOpenSettings={() => window.dispatchEvent(new Event('clawy:open-settings'))}
+        onOpenPalette={() => setPaletteOpen(true)}
+      />
       {auditOpen && (
         <AuditPage
           onClose={() => {
