@@ -253,6 +253,85 @@ describe('toggleTaskInContent', () => {
   })
 })
 
+describe('renderMarkdown — basic blocks survive into the preview', () => {
+  it('renders a bullet list as <ul><li>', () => {
+    const html = renderMarkdown('- one\n- two')
+    expect(html).toMatch(/<ul[^>]*>/)
+    expect(html).toMatch(/<li[^>]*>one<\/li>/)
+    expect(html).toMatch(/<li[^>]*>two<\/li>/)
+  })
+
+  it('renders a numbered list as <ol><li>', () => {
+    const html = renderMarkdown('1. one\n2. two')
+    expect(html).toMatch(/<ol[^>]*>/)
+    expect(html).toMatch(/<li[^>]*>one<\/li>/)
+    expect(html).toMatch(/<li[^>]*>two<\/li>/)
+  })
+
+  it('renders task lists with our checkbox class', () => {
+    const html = renderMarkdown('- [ ] todo\n- [x] done')
+    expect(html).toMatch(/plume-task-checkbox/)
+    expect(html).toMatch(/data-task-idx="0"/)
+    expect(html).toMatch(/data-task-idx="1"[^>]*checked/)
+  })
+
+  it('renders bold, italic, strikethrough, highlight', () => {
+    const html = renderMarkdown('**bold** *italic* ~~strike~~ ==hi==')
+    expect(html).toMatch(/<strong>bold<\/strong>/)
+    expect(html).toMatch(/<em>italic<\/em>/)
+    expect(html).toMatch(/<del>strike<\/del>/)
+    expect(html).toMatch(/plume-highlight/)
+  })
+
+  it('renders inline code and a fenced code block with copy button', () => {
+    const html = renderMarkdown('inline `x` then\n```js\nlet y = 1\n```')
+    expect(html).toMatch(/<code[^>]*>x<\/code>/)
+    expect(html).toMatch(/plume-codeblock/)
+    expect(html).toMatch(/plume-copy/)
+    expect(html).toMatch(/language-js/)
+  })
+
+  it('renders links and images with HTML escaping', () => {
+    const html = renderMarkdown('[OpenAI](https://openai.com) and ![alt](https://x/y.png)')
+    expect(html).toMatch(/<a[^>]*href="https:\/\/openai\.com"[^>]*>OpenAI<\/a>/)
+    expect(html).toMatch(/<img[^>]*src="https:\/\/x\/y\.png"[^>]*alt="alt"/)
+  })
+
+  it('renders all heading levels', () => {
+    for (let level = 1; level <= 6; level++) {
+      const html = renderMarkdown('#'.repeat(level) + ' Heading')
+      expect(html).toMatch(new RegExp(`<h${level}[^>]*>Heading</h${level}>`))
+    }
+  })
+
+  it('renders blockquotes and horizontal rules', () => {
+    const html = renderMarkdown('> quote\n\n---\n\nafter')
+    expect(html).toMatch(/<blockquote/)
+    expect(html).toMatch(/<hr/)
+  })
+
+  it('renders tables', () => {
+    const html = renderMarkdown('| a | b |\n| --- | --- |\n| 1 | 2 |')
+    expect(html).toMatch(/<table>/)
+    expect(html).toMatch(/<th[^>]*>a<\/th>/)
+    expect(html).toMatch(/<td[^>]*>1<\/td>/)
+  })
+
+  it('renders wikilinks against existing titles', () => {
+    const html = renderMarkdown('See [[Existing]] and [[Ghost]].', {
+      existingTitles: new Set(['Existing']),
+    })
+    // Existing → solid wikilink class only.
+    expect(html).toMatch(
+      /<a[^>]*class="plume-wikilink"[^>]*data-wikilink="Existing"[^>]*>Existing<\/a>/,
+    )
+    // Missing title → ghost variant.
+    expect(html).toMatch(
+      /<a[^>]*class="plume-wikilink plume-wikilink-ghost"[^>]*data-wikilink="Ghost"[^>]*>Ghost<\/a>/,
+    )
+  })
+})
+
 describe('buildFolderTree', () => {
   const f = (id: string, parentId: string | null = null) => ({ id, name: id, parentId, color: '#000' })
 
