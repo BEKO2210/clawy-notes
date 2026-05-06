@@ -4,8 +4,10 @@ import {
   Folder, Tag, Pin, Archive, Trash2, ChevronLeft, FileText,
   Bold, Italic, Heading, List, CheckSquare,
   Strikethrough, Code, Link as LinkIcon, Quote, ListOrdered,
-  Table as TableIcon, Image as ImageIcon, Minus, Code2, X, Check
+  Table as TableIcon, Image as ImageIcon, Minus, Code2, X, Check,
+  Settings as SettingsIcon
 } from 'lucide-react'
+import { SettingsModal } from './SettingsModal'
 
 const TAG_PALETTE = [
   '#0ea5e9', '#22c55e', '#f59e0b', '#ef4444',
@@ -136,6 +138,7 @@ function Sidebar() {
   const [newTagName, setNewTagName] = useState('')
   const [newTagColor, setNewTagColor] = useState<string>(TAG_PALETTE[0])
   const [activeFolder, setActiveFolder] = useState<string | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -462,7 +465,23 @@ function Sidebar() {
           )}
         </div>
       </div>
+
+      {/* Footer: settings */}
+      <div className="border-t border-[var(--bg-tertiary)] px-3 py-2 flex items-center justify-between">
+        <span className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">
+          {notes.filter(n => !n.isArchived).length} active · {notes.filter(n => n.isArchived).length} archived
+        </span>
+        <button
+          onClick={() => setSettingsOpen(true)}
+          className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+          aria-label="Open settings"
+          title="Settings"
+        >
+          <SettingsIcon className="w-4 h-4" />
+        </button>
+      </div>
       </aside>
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
     </>
   )
 }
