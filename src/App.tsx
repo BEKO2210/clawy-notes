@@ -1037,8 +1037,15 @@ function MobileFab({ onOpenSettings, onOpenPalette, hasOtherOverlays, onCloseAll
     startY: number
     initialX: number
     initialY: number
+    startTime: number
     moved: boolean
   } | null>(null)
+
+  // A real drag has to satisfy BOTH a distance and a time test. Pure
+  // taps on a phone almost always travel 8-10 px because the finger is
+  // not a pixel-perfect input device.
+  const DRAG_PX_THRESHOLD = 10
+  const TAP_MS_CEILING = 250
 
   const action = (run: () => void) => {
     setOpen(false)
@@ -1069,13 +1076,19 @@ function MobileFab({ onOpenSettings, onOpenPalette, hasOtherOverlays, onCloseAll
   const onPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (!buttonRef.current) return
     const target = buttonRef.current
-    target.setPointerCapture(e.pointerId)
+    try {
+      target.setPointerCapture(e.pointerId)
+    } catch {
+      // Some browsers refuse pointer capture on certain element types;
+      // dragging still works without it.
+    }
     dragStateRef.current = {
       pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
       initialX: fabPosition.x,
       initialY: fabPosition.y,
+      startTime: Date.now(),
       moved: false,
     }
   }
@@ -1085,36 +1098,60 @@ function MobileFab({ onOpenSettings, onOpenPalette, hasOtherOverlays, onCloseAll
     if (!s || s.pointerId !== e.pointerId) return
     const dx = e.clientX - s.startX
     const dy = e.clientY - s.startY
-    if (!s.moved && Math.hypot(dx, dy) > 6) {
+    if (!s.moved && Math.hypot(dx, dy) > DRAG_PX_THRESHOLD) {
       s.moved = true
       setDragging(true)
     }
     if (!s.moved) return
     const x = s.initialX - dx
     const y = s.initialY - dy
-    // Constrain to viewport (24px margin around the 56px button).
+    // Constrain to viewport, leaving room for system UI (Android nav bar /
+    // iOS home indicator) at the bottom and a regular margin elsewhere.
     const w = window.innerWidth
     const h = window.innerHeight
     const clampedX = Math.max(8, Math.min(w - 56 - 8, x))
-    const clampedY = Math.max(8, Math.min(h - 56 - 8, y))
+    const clampedY = Math.max(24, Math.min(h - 56 - 8, y))
     setDrag({ x: clampedX, y: clampedY })
+  }
+
+  const finishDrag = (s: NonNullable<typeof dragStateRef.current>, asTap: boolean) => {
+    dragStateRef.current = null
+    if (!asTap && drag) {
+      setFabPosition(drag)
+    }
+    setDrag(null)
+    if (asTap) {
+      setDragging(false)
+      handleTap()
+    } else {
+      // Suppress the synthetic click that follows a real drag.
+      setTimeout(() => setDragging(false), 0)
+    }
+    void s
   }
 
   const onPointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
     const s = dragStateRef.current
     if (!s || s.pointerId !== e.pointerId) return
-    dragStateRef.current = null
-    if (s.moved && drag) {
-      setFabPosition(drag)
-    }
-    setDrag(null)
-    if (s.moved) {
-      // Suppress the synthetic click that follows a pointerup if we dragged.
-      setTimeout(() => setDragging(false), 0)
-    } else {
-      setDragging(false)
-      handleTap()
-    }
+    // Time-based override: a quick press always counts as a tap, even
+    // if the finger wandered a few extra pixels. This is what makes
+    // the FAB tappable when it sits in the bottom edge zone where
+    // browsers send jittery touch events.
+    const elapsed = Date.now() - s.startTime
+    const asTap = !s.moved || elapsed < TAP_MS_CEILING
+    finishDrag(s, asTap)
+  }
+
+  const onPointerCancel = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const s = dragStateRef.current
+    if (!s || s.pointerId !== e.pointerId) return
+    // Browsers cancel pointer events when they want to claim the
+    // gesture (e.g. iOS swipe-from-bottom for the home indicator). If
+    // the user had not moved past the drag threshold and the press
+    // was short, treat it as a tap so the button still responds.
+    const elapsed = Date.now() - s.startTime
+    const asTap = !s.moved && elapsed < TAP_MS_CEILING
+    finishDrag(s, asTap)
   }
 
   const pos = drag ?? fabPosition
@@ -1126,11 +1163,7 @@ function MobileFab({ onOpenSettings, onOpenPalette, hasOtherOverlays, onCloseAll
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={() => {
-          dragStateRef.current = null
-          setDrag(null)
-          setDragging(false)
-        }}
+        onPointerCancel={onPointerCancel}
         aria-label={open ? 'Close quick actions' : overlaysOpen ? 'Close overlays' : 'Open quick actions'}
         aria-expanded={open}
         className={`fixed z-[55] w-14 h-14 rounded-full shadow-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] touch-none ${
