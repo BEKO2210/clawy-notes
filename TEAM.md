@@ -1,6 +1,6 @@
-# Clawy Notes - Team Directory
+# Plume - Team Directory
 
-## Project: Clawy Notes
+## Project: Plume
 **Type:** Markdown Note Editor (Offline-First, Mobile-Ready)
 **Stack:** React 18 + TypeScript + Tailwind CSS v3 + Vite + Zustand
 **Design:** Editorial/Magazine - Strong grid, dramatic headlines, whitespace as feature

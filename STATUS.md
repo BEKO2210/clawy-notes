@@ -1,7 +1,7 @@
-# Clawy Notes - Status Report
+# Plume - Status Report
 
 **Date:** 2026-05-05
-**Project:** Clawy Notes (Markdown Editor)
+**Project:** Plume (Markdown Editor)
 **Repo:** https://github.com/BEKO2210/clawy-notes
 **Live:** https://beko2210.github.io/clawy-notes/
 

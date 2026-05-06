@@ -198,7 +198,7 @@ function Sidebar() {
           <div className="flex items-center gap-2">
             <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="" className="w-7 h-7 rounded-lg shadow-sm" />
             <h1 className="text-lg font-display tracking-tight leading-none">
-              <span className="font-bold text-[var(--text-primary)]">Clawy</span>
+              <span className="font-bold text-[var(--text-primary)]">Plume</span>
               <span className="font-medium text-[var(--text-secondary)] ml-1">Notes</span>
             </h1>
           </div>

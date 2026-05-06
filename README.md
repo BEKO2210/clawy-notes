@@ -1,4 +1,4 @@
-# Clawy Notes
+# Plume
 
 A fast, beautiful, offline-first markdown note editor.
 
