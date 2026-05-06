@@ -23,6 +23,15 @@ describe('extractTitle', () => {
   it('handles any heading level', () => {
     expect(extractTitle('### Sub heading\nbody')).toBe('Sub heading')
   })
+
+  it('strips inline markdown so titles render as plain text', () => {
+    expect(extractTitle('**belkis**')).toBe('belkis')
+    expect(extractTitle('*italic* and **bold**')).toBe('italic and bold')
+    expect(extractTitle('~~strike~~ thing')).toBe('strike thing')
+    expect(extractTitle('a `code` snippet')).toBe('a code snippet')
+    expect(extractTitle('# Hello **world**')).toBe('Hello world')
+    expect(extractTitle('See [Plume](https://example.com)')).toBe('See Plume')
+  })
 })
 
 describe('formatDate', () => {

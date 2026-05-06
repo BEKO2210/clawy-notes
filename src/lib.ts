@@ -12,17 +12,35 @@ export function renderMarkdown(content: string): string {
   return DOMPurify.sanitize(rawHtml)
 }
 
+// Strip the most common inline markdown tokens so titles render as plain
+// text. Intentionally lightweight — anything we miss falls back to the raw
+// characters, which is fine.
+function stripMarkdown(s: string): string {
+  return s
+    .replace(/^#+\s+/, '')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')   // [text](url) -> text
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')  // ![alt](url) -> alt
+    .replace(/\*\*([^*]+)\*\*/g, '$1')          // **bold** -> bold
+    .replace(/__([^_]+)__/g, '$1')              // __bold__ -> bold
+    .replace(/\*([^*]+)\*/g, '$1')              // *italic* -> italic
+    .replace(/_([^_]+)_/g, '$1')                // _italic_ -> italic
+    .replace(/~~([^~]+)~~/g, '$1')              // ~~strike~~ -> strike
+    .replace(/`([^`]+)`/g, '$1')                // `code` -> code
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 export function extractTitle(content: string): string {
   const lines = content.split('\n')
   // Find first heading
   for (const line of lines) {
     const match = line.match(/^#+\s+(.+)$/)
-    if (match) return match[1]
+    if (match) return stripMarkdown(match[1])
   }
   // Return first non-empty line or default
   for (const line of lines) {
     const trimmed = line.trim()
-    if (trimmed) return trimmed.slice(0, 50)
+    if (trimmed) return stripMarkdown(trimmed).slice(0, 50)
   }
   return 'Untitled Note'
 }

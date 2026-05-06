@@ -588,14 +588,14 @@ function Editor() {
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-[var(--bg-primary)]">
+    <div className="flex-1 flex flex-col bg-[var(--bg-primary)] min-w-0 overflow-hidden">
       {/* Note Header */}
-      <div className={`flex items-center justify-between py-3 pr-4 border-b border-[var(--bg-tertiary)] ${sidebarOpen ? 'pl-4' : 'pl-16'}`}>
-        <div className="flex items-center gap-2 min-w-0">
-          <h2 className="text-lg font-semibold font-display text-[var(--text-primary)] truncate">{note.title}</h2>
+      <div className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 py-3 pr-3 border-b border-[var(--bg-tertiary)] ${sidebarOpen ? 'pl-4' : 'pl-16'}`}>
+        <div className="flex items-center gap-2 min-w-0 basis-full sm:basis-auto sm:flex-1">
+          <h2 className="text-base sm:text-lg font-semibold font-display text-[var(--text-primary)] truncate">{note.title}</h2>
           {note.isPinned && <Pin className="w-4 h-4 text-[var(--accent)] flex-shrink-0" />}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-shrink-0 flex-wrap">
           <div className="relative" ref={tagPickerRef}>
             <button
               onClick={() => setShowTagPicker(v => !v)}
