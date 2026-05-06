@@ -9,20 +9,13 @@
       <stop offset="0" stop-color="#FFFFFF"/>
       <stop offset="1" stop-color="#E0F2FE"/>
     </linearGradient>
-    <filter id="cn-glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="0.4" result="blur"/>
-      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-    </filter>
   </defs>
   <rect width="64" height="64" rx="14" fill="url(#cn-bg)"/>
-  <!-- Subtle inner highlight for depth -->
   <rect x="0.5" y="0.5" width="63" height="63" rx="13.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.12"/>
-  <!-- Three writing strokes with subtle rhythm -->
-  <g stroke="url(#cn-stroke)" stroke-width="4" stroke-linecap="round" filter="url(#cn-glow)">
+  <g stroke="url(#cn-stroke)" stroke-width="4" stroke-linecap="round">
     <line x1="18" y1="22" x2="44" y2="22"/>
     <line x1="18" y1="32" x2="48" y2="32"/>
     <line x1="18" y1="42" x2="36" y2="42"/>
   </g>
-  <!-- Cursor accent on the active line -->
   <circle cx="40" cy="42" r="2.5" fill="#FACC15"/>
 </svg>

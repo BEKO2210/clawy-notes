@@ -195,10 +195,16 @@ function Sidebar() {
       {/* Header */}
       <div className="p-4 border-b border-[var(--bg-tertiary)]">
         <div className="flex items-center justify-between mb-3">
-          <h1 className="text-lg font-bold font-display text-[var(--text-primary)]">Clawy Notes</h1>
+          <div className="flex items-center gap-2">
+            <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="" className="w-7 h-7 rounded-lg shadow-sm" />
+            <h1 className="text-lg font-display tracking-tight leading-none">
+              <span className="font-bold text-[var(--text-primary)]">Clawy</span>
+              <span className="font-medium text-[var(--text-secondary)] ml-1">Notes</span>
+            </h1>
+          </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="p-2 rounded hover:bg-[var(--bg-tertiary)]"
+            className="p-2 rounded hover:bg-[var(--bg-tertiary)] transition-colors"
             aria-label="Close menu"
           >
             <ChevronLeft className="w-5 h-5 text-[var(--text-secondary)]" />

@@ -1,0 +1,18 @@
+<svg width="200" height="48" viewBox="0 0 200 48" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Clawy Notes">
+  <defs>
+    <linearGradient id="wm-bg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#38BDF8"/>
+      <stop offset="0.55" stop-color="#0EA5E9"/>
+      <stop offset="1" stop-color="#0369A1"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="48" height="48" rx="11" fill="url(#wm-bg)"/>
+  <rect x="0.5" y="0.5" width="47" height="47" rx="10.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.12"/>
+  <g stroke="#FFFFFF" stroke-width="3" stroke-linecap="round">
+    <line x1="14" y1="17" x2="34" y2="17"/>
+    <line x1="14" y1="24" x2="36" y2="24"/>
+    <line x1="14" y1="31" x2="28" y2="31"/>
+  </g>
+  <circle cx="31" cy="31" r="1.9" fill="#FACC15"/>
+  <text x="60" y="32" font-family="'Space Grotesk', system-ui, sans-serif" font-weight="700" font-size="22" letter-spacing="-0.5" fill="currentColor">Clawy <tspan font-weight="500" fill-opacity="0.75">Notes</tspan></text>
+</svg>
