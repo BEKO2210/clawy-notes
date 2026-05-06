@@ -1,6 +1,42 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
 import type { Note, Folder, Tag, ViewMode } from './types'
+import { idbDelete, idbSet, migrateFromLocalStorage } from './db'
+
+// Storage adapter: IndexedDB primary, localStorage mirror as a best-effort
+// fallback. On the very first read for a given key we migrate any legacy
+// localStorage payload into IndexedDB so existing users keep their notes.
+const idbStorage: StateStorage = {
+  getItem: async (name) => {
+    return await migrateFromLocalStorage(name)
+  },
+  setItem: async (name, value) => {
+    const ok = await idbSet(name, value)
+    if (!ok) {
+      try {
+        localStorage.setItem(name, value)
+      } catch {
+        // ignore quota / availability errors
+      }
+      return
+    }
+    // Mirror to localStorage when it still fits, so a fresh tab can pick
+    // notes up synchronously before IDB resolves.
+    try {
+      localStorage.setItem(name, value)
+    } catch {
+      // QuotaExceededError or unavailable — IndexedDB remains the truth.
+    }
+  },
+  removeItem: async (name) => {
+    await idbDelete(name)
+    try {
+      localStorage.removeItem(name)
+    } catch {
+      // ignore
+    }
+  },
+}
 
 interface NoteStore {
   // Data
@@ -245,6 +281,7 @@ export const useNoteStore = create<NoteStore>()(
     }),
     {
       name: 'clawy-notes-storage',
+      storage: createJSONStorage(() => idbStorage),
       partialize: (state) => ({
         notes: state.notes,
         folders: state.folders,

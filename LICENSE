@@ -1,0 +1,67 @@
+Plume — End-User License
+========================
+
+Copyright (c) 2026 Plume Notes. All rights reserved.
+
+This software ("Plume") is provided to you under a personal,
+non-transferable, non-exclusive license to use the application for any
+purpose, including personal, commercial, non-profit, educational, and
+governmental use, subject to the terms below.
+
+1. Grant of Use
+   You may install, run, and use Plume on any device you own or control
+   for any purpose, free of charge. No account or registration is
+   required to use Plume.
+
+2. Ownership
+   The application — including its source code, design, text, images,
+   binaries, and all other materials — is owned by the Plume authors
+   and is protected by copyright and other applicable laws.
+
+   Notes, files, and any other content you create within Plume remain
+   yours. The license granted in Section 1 is solely for the
+   application; it does not grant any rights to the software's
+   underlying intellectual property.
+
+3. Restrictions
+   You may not:
+     a. redistribute, sublicense, sell, or rent the application or any
+        substantial portion of its source code,
+     b. publish modified copies of the application under a name that
+        could be confused with "Plume",
+     c. remove or obscure any copyright, trademark, or attribution
+        notice present in the application or its source.
+
+   Personal modifications and self-hosted deployments for your own use
+   (or your organisation's internal use) are permitted. Forks and
+   pull requests on the public repository, intended for upstream
+   contribution, are explicitly welcome.
+
+4. Trademarks
+   "Plume" and the Plume logo are trademarks of the Plume authors. You
+   may use them to refer to the application, but not in a way that
+   suggests endorsement of, or affiliation with, your own product or
+   service.
+
+5. No Warranty
+   Plume is provided "AS IS", without warranty of any kind, express or
+   implied, including but not limited to the warranties of
+   merchantability, fitness for a particular purpose, and
+   non-infringement. In no event shall the authors be liable for any
+   claim, damages, or other liability arising from the use of, or in
+   connection with, the application.
+
+6. Termination
+   This license is effective until terminated. It will terminate
+   automatically without notice if you fail to comply with any of its
+   terms. Upon termination, you must cease all use of the application
+   and destroy all copies in your possession.
+
+7. Governing Law
+   This license is governed by the laws of the jurisdiction where the
+   primary copyright holder resides, without regard to conflict-of-law
+   principles. Any dispute arising from this license shall be resolved
+   in the courts of that jurisdiction.
+
+If any provision of this license is held to be unenforceable, the
+remaining provisions shall continue in full force and effect.
