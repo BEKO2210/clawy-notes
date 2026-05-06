@@ -57,6 +57,68 @@ function nodeRadius(contentSize: number, degree: number): number {
 }
 
 /**
+ * Project a point onto an implicit "brain" surface — two squashed
+ * ellipsoidal hemispheres separated by a longitudinal fissure, with
+ * sinusoidal gyri/sulci so the surface looks folded rather than smooth.
+ * The result is the closest brain-shell point along the radial direction
+ * from the active hemisphere's centre.
+ */
+function brainShellPoint(x: number, y: number, z: number, scale: number): [number, number, number] {
+  const hemiSign = x >= 0 ? 1 : -1
+  const hemiCx = hemiSign * 0.45 * scale
+  const dx = x - hemiCx
+  const dy = y
+  const dz = z
+  const len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1e-6
+  const ndx = dx / len
+  const ndy = dy / len
+  const ndz = dz / len
+  // Ellipsoid radii — slightly elongated along x (front/back), squashed in z (top/bottom).
+  const rx = 1.05 * scale
+  const ry = 0.95 * scale
+  const rz = 0.85 * scale
+  const t = 1 / Math.sqrt((ndx / rx) ** 2 + (ndy / ry) ** 2 + (ndz / rz) ** 2)
+  // Gyri/sulci: low-amplitude noise across the surface direction.
+  const fold =
+    1 +
+    0.07 * Math.sin(7 * Math.atan2(ndy, ndx)) * Math.cos(5 * (ndz + 0.3)) +
+    0.04 * Math.sin(11 * ndy) * Math.cos(9 * ndx)
+  return [hemiCx + ndx * t * fold, ndy * t * fold, ndz * t * fold]
+}
+
+interface MutableSimNode extends SimNode {
+  vx: number
+  vy: number
+  vz: number
+}
+
+/**
+ * Custom d3-force-3d force that gently pulls every node onto the
+ * brain-shaped implicit surface. Strength fades with alpha so the
+ * existing link / charge forces still dominate cluster placement —
+ * the brain force only shapes the global silhouette.
+ */
+function brainShellForce(strength: number, scale: number) {
+  let nodes: MutableSimNode[] | null = null
+  function force(alpha: number) {
+    if (!nodes) return
+    const k = strength * alpha
+    for (const n of nodes) {
+      if (n.x == null || n.y == null || n.z == null) continue
+      const [sx, sy, sz] = brainShellPoint(n.x, n.y, n.z, scale)
+      n.vx += (sx - n.x) * k
+      n.vy += (sy - n.y) * k
+      n.vz += (sz - n.z) * k
+    }
+  }
+  // d3 calls .initialize(nodes) when the force is added to a sim.
+  ;(force as unknown as { initialize: (ns: MutableSimNode[]) => void }).initialize = (ns) => {
+    nodes = ns
+  }
+  return force
+}
+
+/**
  * 3D knowledge-graph view: every non-archived note becomes a sphere whose
  * size grows with both its content length and how many wikilinks touch
  * it (capped). Every wikilink becomes an edge between the source note's
@@ -115,24 +177,32 @@ export function GraphView({ onClose, onPickNote }: GraphViewProps) {
   const sim = useMemo(() => {
     if (nodes.length === 0) return null
     // Larger radii need more breathing room; pull link distance off the
-    // average node size so big hubs don't smother small leaves.
+    // average node size so big hubs don't smother small leaves. Tightened
+    // significantly so the cloud fits on a phone screen.
     const avgR = nodes.reduce((a, n) => a + n.radius, 0) / nodes.length
-    const linkDistance = Math.max(8, avgR * 6)
+    const linkDistance = Math.max(3.5, avgR * 3)
+    // Brain shell radius scales with node count so 10 notes feel cosy and
+    // 10k notes form a brain-sized cloud.
+    const brainScale = Math.max(6, Math.cbrt(nodes.length) * 4.5)
+    // Brain force fades in as the graph grows — at <50 notes it's a hint;
+    // by ~1000 it dominates and the cloud takes a brain shape.
+    const brainStrength = Math.min(0.5, 0.04 + nodes.length / 4000)
     const s = forceSimulation(nodes, 3)
       .force(
         'link',
         forceLink(edges)
           .id((d: SimNode) => d.id)
           .distance(linkDistance)
-          .strength((e: SimEdge) => Math.min(1, 0.4 + 0.15 * e.weight)),
+          .strength((e: SimEdge) => Math.min(1, 0.5 + 0.2 * e.weight)),
       )
-      .force('charge', forceManyBody().strength((n: SimNode) => -22 - n.radius * 12))
-      .force('center', forceCenter(0, 0, 0))
+      .force('charge', forceManyBody().strength((n: SimNode) => -8 - n.radius * 6))
+      .force('center', forceCenter(0, 0, 0).strength(0.05))
+      .force('brain', brainShellForce(brainStrength, brainScale))
       .alpha(1)
-      .alphaDecay(0.04)
+      .alphaDecay(0.035)
       .stop()
-    for (let i = 0; i < 100; i++) s.tick()
-    return { tick: () => s.tick(), nodes, edges }
+    for (let i = 0; i < 140; i++) s.tick()
+    return { tick: () => s.tick(), nodes, edges, brainScale }
   }, [nodes, edges])
 
   const [hovered, setHovered] = useState<SimNode | null>(null)
@@ -159,6 +229,7 @@ export function GraphView({ onClose, onPickNote }: GraphViewProps) {
         <color attach="background" args={['#0a0a0a']} />
         <ambientLight intensity={0.7} />
         <directionalLight position={[10, 10, 10]} intensity={0.9} />
+        {sim && <CameraFit sim={sim} />}
         <Scene
           sim={sim}
           onPickNote={(id) => {
@@ -192,6 +263,61 @@ export function GraphView({ onClose, onPickNote }: GraphViewProps) {
 
 function truncate(s: string, n: number): string {
   return s.length <= n ? s : s.slice(0, n - 1).trimEnd() + '…'
+}
+
+/**
+ * One-shot camera fit: walks the settled simulation, computes the cloud's
+ * bounding sphere, and pulls the camera back to whatever distance puts
+ * the whole thing comfortably inside the viewport. Re-runs whenever the
+ * note set (and therefore the simulation) changes — so opening the graph
+ * always frames the entire network, not just the spawn area.
+ */
+function CameraFit({
+  sim,
+}: {
+  sim: { tick: () => void; nodes: SimNode[]; edges: SimEdge[]; brainScale: number }
+}) {
+  const { camera, size } = useThree()
+  useEffect(() => {
+    let minX = Infinity,
+      maxX = -Infinity,
+      minY = Infinity,
+      maxY = -Infinity,
+      minZ = Infinity,
+      maxZ = -Infinity
+    let count = 0
+    for (const n of sim.nodes) {
+      if (n.x == null || n.y == null || n.z == null) continue
+      minX = Math.min(minX, n.x)
+      maxX = Math.max(maxX, n.x)
+      minY = Math.min(minY, n.y)
+      maxY = Math.max(maxY, n.y)
+      minZ = Math.min(minZ, n.z)
+      maxZ = Math.max(maxZ, n.z)
+      count++
+    }
+    if (count === 0) return
+    const cx = (minX + maxX) / 2
+    const cy = (minY + maxY) / 2
+    const cz = (minZ + maxZ) / 2
+    const halfDiag = Math.sqrt(
+      (maxX - minX) ** 2 + (maxY - minY) ** 2 + (maxZ - minZ) ** 2,
+    ) / 2
+    const radius = Math.max(halfDiag, 5)
+    // Account for whichever viewport dimension is smaller (portrait phones
+    // need extra padding) so labels don't fly out of frame.
+    const persp = camera as THREE.PerspectiveCamera
+    const aspect = size.width / Math.max(size.height, 1)
+    const fovV = (persp.fov * Math.PI) / 180
+    const fovH = 2 * Math.atan(Math.tan(fovV / 2) * aspect)
+    const distV = radius / Math.tan(fovV / 2)
+    const distH = radius / Math.tan(fovH / 2)
+    const dist = Math.max(distV, distH) * 1.25
+    persp.position.set(cx, cy, cz + dist)
+    persp.lookAt(cx, cy, cz)
+    persp.updateProjectionMatrix()
+  }, [sim, camera, size.width, size.height])
+  return null
 }
 
 function Scene({
