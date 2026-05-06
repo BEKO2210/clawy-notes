@@ -1,9 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
-import { Download, Upload, RotateCcw, X, FileText, FolderClosed, Tag } from 'lucide-react'
-import { isValidBackup, useNoteStore, type PlumeBackup } from './store'
+import { Download, Upload, RotateCcw, X, FileText, FolderClosed, Tag, Sparkles } from 'lucide-react'
+import { buildAIExport, isValidBackup, useNoteStore, type PlumeBackup } from './store'
 
 interface SettingsModalProps {
   onClose: () => void
+}
+
+function dateStamp(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function downloadJson(text: string, filename: string) {
+  const blob = new Blob([text], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 type ImportMode = 'replace' | 'merge'
@@ -45,18 +61,14 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
       folders,
       tags,
     }
-    const blob = new Blob([JSON.stringify(backup, null, 2)], {
-      type: 'application/json',
-    })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    const stamp = new Date().toISOString().slice(0, 10)
-    a.href = url
-    a.download = `plume-backup-${stamp}.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    downloadJson(JSON.stringify(backup, null, 2), `plume-backup-${dateStamp()}.json`)
+  }
+
+  const handleAIExport = () => {
+    const data = buildAIExport({ notes, folders, tags })
+    // Pretty-printed JSON keeps the file diff-readable; agents can stream
+    // it line-by-line if they prefer (each top-level key on its own line).
+    downloadJson(JSON.stringify(data, null, 2), `plume-ai-export-${dateStamp()}.json`)
   }
 
   const handlePickFile = () => {
@@ -141,6 +153,12 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                 title="Export backup"
                 description="Download all notes, folders, and tags as a JSON file."
                 onClick={handleExport}
+              />
+              <Action
+                icon={<Sparkles className="w-4 h-4" />}
+                title="Export for AI"
+                description="Optimised JSON with backlinks index, snippets, and a graph for Claude / agents."
+                onClick={handleAIExport}
               />
               <Action
                 icon={<Upload className="w-4 h-4" />}
