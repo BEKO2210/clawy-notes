@@ -38,7 +38,7 @@ describe('<ErrorBoundary />', () => {
     expect(screen.getByRole('button', { name: 'Reset data' })).toBeDefined()
   })
 
-  it('asks for confirmation before wiping data', () => {
+  it('asks for confirmation before wiping data', async () => {
     const removeItem = vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {})
     const reload = vi.fn()
     Object.defineProperty(window, 'location', {
@@ -60,8 +60,12 @@ describe('<ErrorBoundary />', () => {
 
     confirm.mockReturnValue(true)
     fireEvent.click(screen.getByRole('button', { name: 'Reset data' }))
-    expect(removeItem).toHaveBeenCalledWith('clawy-notes-storage')
-    expect(reload).toHaveBeenCalled()
+    // resetData is now async — it waits for IndexedDB.deleteDatabase() to
+    // resolve before reloading. Wait until both side effects fire.
+    await vi.waitFor(() => {
+      expect(removeItem).toHaveBeenCalledWith('clawy-notes-storage')
+      expect(reload).toHaveBeenCalled()
+    })
 
     removeItem.mockRestore()
   })
